@@ -32,15 +32,6 @@ ideals = []
 with open('ideals.pkl', 'wb') as f:
     pickle.dump(ideals, f)
     
-# test print ideals on a black canvas
-for hand_landmarks in ideals:
-    utils.drawLandmarks(hand_landmarks, blackCanvas, "ideal")
-    k = cv2.waitKey(0)
-    if k == 27 or k == ord('q'):
-        cv2.destroyAllWindows()
-        sys.exit()
-    else: 
-        cv2.destroyAllWindows()
     
     
 # TODO: find a way to associate the hands in ideals with a letter or index 
