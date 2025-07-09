@@ -1,3 +1,5 @@
+# Custom defined functions to help main.py and train.py
+
 import cv2
 import mediapipe as mp
 import string

@@ -1,14 +1,21 @@
+# This file creates the ideals.pkl file with an averaged hand landmark dataset for every letter
+# Assumption is that SignAlphaSet and its folder convention are used as training data
+
 import cv2
 import mediapipe as mp
 import string
 import sys
-import utils # utils.py custom defines
+import pickle
+import utils # utils.py custom defines functions
 
 # debug macro
 debug = 1
 
 # number of images per letter to process
 nimpl = 1
+
+# initialize empty set to store averaged ideal hands
+ideals = []
 
 # do not include Z or J because they have movement in the sign; out of scope for now
 letters = [ch for ch in string.ascii_uppercase if ch not in ('J', 'Z')]
@@ -24,6 +31,7 @@ hands = mp_hands.Hands(
     min_detection_confidence=0.5,
     min_tracking_confidence=0.6)
 
+hand = []
 
 for letter in letters:
     for i in range(0, nimpl):
@@ -34,6 +42,9 @@ for letter in letters:
         #image = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB) # open image and convert it to RGB
         image = cv2.imread(path)
         hand = hands.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        
+        # draw the non-flipped hand, we will clear this after drawing the flipped hand
+        if debug: utils.drawLandmarks(hand, image, path)
         
         # some of the hands are mirrored across the veritcal axis; dataset contains left and right handed symbols
         # we need to have the ideal case be averaging across only right signs
@@ -52,7 +63,7 @@ for letter in letters:
                         utils.drawLandmarks(hand, image, txt)
                         
                 
-            case 'b':
+            case 'B':
                 # flip if index root left of pinky root
                 if hand.multi_hand_landmarks[0].landmark[5].x < hand.multi_hand_landmarks[0].landmark[17].x:
                     image = cv2.flip(image, 1) # code 1 for horizontal flip
@@ -61,7 +72,7 @@ for letter in letters:
                     
 
             
-            # case 'c':
+            # case 'c': TODO
                 
             # case 'd':
             
@@ -107,10 +118,34 @@ for letter in letters:
                 
             case _:
                 print('default case of letter matching; error!')
-                    
-       
-
+                
+        # key press to clear images or quit in debug mode
+        if debug:
+            k = cv2.waitKey(0)
+            if k == 27 or k == ord('q'):
+                cv2.destroyAllWindows()
+                sys.exit()
+            else: 
+                cv2.destroyAllWindows()
         
+    # TODO: averaging
+    # store the hand in ideals so we can pickle it later  
+    # this is just storing the last hand read
+    # we can't store the hand objects directly because they contain all sorts of C++ and tensorflow nonsense; not pickleable
+    # instead we just need the x, y, z values along with a letter ID, so store hand 0 (there should only be one)
+    export = []
+    if hand.multi_hand_landmarks:
+        for lm in hand.multi_hand_landmarks[0].landmark: export.append((lm.x, lm.y, lm.z)) 
+        ideals.append({"letter" : letter, "landmarks" : export})
+        print(f"Appended, total hands stored: {len(ideals)}")
+    
+# save ideal hands to a file ideals.pkl
+with open("ideals.pkl", "wb") as f:
+    print(ideals)
+    pickle.dump(ideals, f)
+    
+## OLD CODE
+
         # if debug:
         #     # draw the joints and bones on the hand image
         #     if hand.multi_hand_landmarks:
@@ -128,15 +163,6 @@ for letter in letters:
         #                 mp_draw.DrawingSpec(color=(255,0,0), thickness=2))
                 
         #     cv2.imshow('Loaded Image', image)
-                
-        utils.drawLandmarks(hand, image, path)
-        k = cv2.waitKey(0)
-        if k == 27 or k == ord('q'):
-            cv2.destroyAllWindows()
-            sys.exit()
-        else: 
-            cv2.destroyAllWindows()
-
 
 
 

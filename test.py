@@ -1,3 +1,6 @@
+# This file tests live video and drawing functionality
+# It opens a window with the webcam and draws any hand lanmarks detected
+
 import cv2
 import mediapipe as mp
 
