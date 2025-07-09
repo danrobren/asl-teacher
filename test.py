@@ -1,15 +1,15 @@
 import cv2
 import mediapipe as mp
 
-
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
 
 # Initialize Hand Landmarker (Hands)
 hands = mp_hands.Hands(
     model_complexity=1,
+    static_image_mode=False,
     min_detection_confidence=0.5,
-    min_tracking_confidence=0.5)
+    min_tracking_confidence=0.6)
 
 # Start webcam capture (index 0 = default camera)
 cap = cv2.VideoCapture(0)

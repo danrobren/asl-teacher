@@ -1,3 +1,11 @@
+# dataset where SignAlphaSet folders are stored; huge file size and it's available free on the internet
+# this folder should contain 26 subfolders each named with a captial letter of the alphabet
+# each subfolder contains 1000 images of the ASL sign for that letter
+/dataset/SignAlphaSet
+
+# standard error dump from mediapipe C++ backend
+train-stderr.txt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
