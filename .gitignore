@@ -6,6 +6,9 @@
 # standard error dump from mediapipe C++ backend
 train-stderr.txt
 
+# script to run the training and dump the stderr into train-sterr.txt
+run-training.bat
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

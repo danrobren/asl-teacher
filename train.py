@@ -1,36 +1,38 @@
 # This file creates the ideals.pkl file with an averaged hand landmark dataset for every letter
 # Assumption is that SignAlphaSet and its folder convention are used as training data
 
-import cv2
-import mediapipe as mp
 import string
 import sys
 import pickle
+import json
+import cv2
+import mediapipe as mp
 import utils # utils.py custom defines functions
+
+# Load the settings file
+with open("settings.json", "r") as f:
+    settings = json.load(f)
 
 # debug macro
 debug = 1
 
 # number of images per letter to process
-nimpl = 1
+nimpl = 2
 
 # initialize empty set to store averaged ideal hands
 ideals = []
 
 # do not include Z or J because they have movement in the sign; out of scope for now
 letters = [ch for ch in string.ascii_uppercase if ch not in ('J', 'Z')]
-#print(letters)
 
+# instantiate mediapipe drawing object
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
 
-# Iiitialize hand landmarker (hands)
-hands = mp_hands.Hands(
-    model_complexity=1,
-    static_image_mode=False,
-    min_detection_confidence=0.5,
-    min_tracking_confidence=0.6)
+# initialize hands processor by calling the constructor cirectly 
+Hands = mp_hands.Hands(**settings["train"])
 
+# initialize empty hand data object to contain the loaded hands
 hand = []
 
 for letter in letters:
@@ -38,49 +40,58 @@ for letter in letters:
         
         # load the image and process the 
         path = "dataset/SignAlphaSet/" + letter + "/" + letter + "_" + str(i) + ".jpg" # path to each letter image
-        if debug: print(path)
+        if debug: 
+            print(path)
         #image = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB) # open image and convert it to RGB
         image = cv2.imread(path)
-        hand = hands.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        print("image read")
+        hand = Hands.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        print("hand process")
         
         # draw the non-flipped hand, we will clear this after drawing the flipped hand
-        if debug: utils.drawLandmarks(hand, image, path)
+        if debug: 
+            utils.drawLandmarks(hand, image, path, mp_draw, mp_hands)
         
         # some of the hands are mirrored across the veritcal axis; dataset contains left and right handed symbols
         # we need to have the ideal case be averaging across only right signs
         # image flip criteria is hand sign dependant, so we need tailored behavior for each sign
-        #
         match letter:
             case 'A':
                 # we flip the image about verical axis if thumb tip left of pinky 1st joint 
                 # thumb tip is the 5th element (index 4) of the landmarks, x coordinate is normalized from [0 1], 0= left edge
                 if hand.multi_hand_landmarks[0].landmark[4].x < hand.multi_hand_landmarks[0].landmark[18].x:
-                    image = cv2.flip(image, 1) # code 1 for horizontal flip
-                    hand = hands.process(image) # reprocess hands for flipped image
-                    if debug:
-                        txt = "Flipped " + letter + "_" + str(i)
-                        print(txt)
-                        utils.drawLandmarks(hand, image, txt)
-                        
+                    print("flipping hand")
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands)   
                 
             case 'B':
                 # flip if index root left of pinky root
                 if hand.multi_hand_landmarks[0].landmark[5].x < hand.multi_hand_landmarks[0].landmark[17].x:
-                    image = cv2.flip(image, 1) # code 1 for horizontal flip
-                    hand = hands.process(image) # reprocess hands for flipped image
-                    
-                    
-
-            
-            # case 'c': TODO
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands)    
+     
+            case 'c':
+                # flip if thumb is pointing right
+                if hand.multi_hand_landmarks[0].landmark[4].x < hand.multi_hand_landmarks[0].landmark[3].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands)    
                 
-            # case 'd':
-            
-            # case 'e':
+            case 'd':
+                # flip if pointer finger tip left of pinky tip
+                if hand.multi_hand_landmarks[0].landmark[8].x < hand.multi_hand_landmarks[0].landmark[20].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands)    
                 
-            # case 'f':
+            case 'e':
+            # flip if pointer finger tip left of pinky tip
+                if hand.multi_hand_landmarks[0].landmark[8].x < hand.multi_hand_landmarks[0].landmark[20].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands)    
                 
-            # case 'g':
+            case 'f':
+            # flip if pointer finger tip left of pinky tip
+                if hand.multi_hand_landmarks[0].landmark[8].x < hand.multi_hand_landmarks[0].landmark[20].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands)    
+                
+            case 'g':
+            # flip if pointer finger tip left of pinky tip
+                if hand.multi_hand_landmarks[0].landmark[8].x < hand.multi_hand_landmarks[0].landmark[20].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands)    
                 
             # case 'h':
                 
