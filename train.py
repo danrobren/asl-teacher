@@ -89,46 +89,101 @@ for letter in letters:
                     utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands)    
                 
             case 'g':
-            # flip if pointer finger tip left of pinky tip
-                if hand.multi_hand_landmarks[0].landmark[8].x < hand.multi_hand_landmarks[0].landmark[20].x:
+            # flip if pointer knuckle left of pointer tip
+                if hand.multi_hand_landmarks[0].landmark[5].x < hand.multi_hand_landmarks[0].landmark[8].x:
                     utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands)    
                 
-            # case 'h':
+            case 'h':
+            # flip if pointer knuckle left of pointer tip
+                if hand.multi_hand_landmarks[0].landmark[5].x < hand.multi_hand_landmarks[0].landmark[8].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands)    
                 
-            # case 'i':
+            case 'i':
+            # flip if pointer first joint left of pinky tip
+                if hand.multi_hand_landmarks[0].landmark[6].x < hand.multi_hand_landmarks[0].landmark[20].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands) 
+                    
+            case 'k':
+            # flip if pointer tip left of middle finger tip
+                if hand.multi_hand_landmarks[0].landmark[8].x < hand.multi_hand_landmarks[0].landmark[12].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands)   
                 
-            # case 'k':
+            case 'l':
+            # flip if thumb tip left of thumb knuckle
+                if hand.multi_hand_landmarks[0].landmark[4].x < hand.multi_hand_landmarks[0].landmark[2].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands) 
+            
+            case 'm':
+            # flip if pointer first joint left of pinky first joint
+                if hand.multi_hand_landmarks[0].landmark[6].x < hand.multi_hand_landmarks[0].landmark[18].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands) 
                 
-            # case 'l':
+            case 'n':
+            # flip if pointer first joint left of pinky first joint
+                if hand.multi_hand_landmarks[0].landmark[6].x < hand.multi_hand_landmarks[0].landmark[18].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands) 
                 
-            # case 'm':
+            case 'o':
+            # flip if pointer knuckle left of thumb knuckle
+                if hand.multi_hand_landmarks[0].landmark[5].x < hand.multi_hand_landmarks[0].landmark[3].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands) 
                 
-            # case 'n':
+            case 'p':
+            # flip if pointer knuckle left of pointer tip
+                if hand.multi_hand_landmarks[0].landmark[5].x < hand.multi_hand_landmarks[0].landmark[8].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands)    
                 
-            # case 'o':
+            case 'q':
+            # flip if pointer knuckle left of pointer tip
+                if hand.multi_hand_landmarks[0].landmark[5].x < hand.multi_hand_landmarks[0].landmark[8].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands) 
+                       
+            case 'r':
+            # flip if pointer knuckle left of pinky knuckle
+                if hand.multi_hand_landmarks[0].landmark[5].x < hand.multi_hand_landmarks[0].landmark[17].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands) 
                 
-            # case 'p':
+            case 's':
+            # flip if pointer knuckle left of pinky knuckle
+                if hand.multi_hand_landmarks[0].landmark[5].x < hand.multi_hand_landmarks[0].landmark[17].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands) 
                 
-            # case 'q':
+            case 't':
+            # flip if pointer knuckle left of pinky knuckle
+                if hand.multi_hand_landmarks[0].landmark[5].x < hand.multi_hand_landmarks[0].landmark[17].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands) 
                 
-            # case 'r':
+            case 'u':
+            # flip if pointer knuckle left of pinky knuckle
+                if hand.multi_hand_landmarks[0].landmark[5].x < hand.multi_hand_landmarks[0].landmark[17].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands) 
                 
-            # case 's':
+            case 'v':
+            # flip if pointer knuckle left of pinky knuckle
+                if hand.multi_hand_landmarks[0].landmark[5].x < hand.multi_hand_landmarks[0].landmark[17].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands)
+                    
+            case 'w':
+            # flip if pointer tip left of ring finger tip
+                if hand.multi_hand_landmarks[0].landmark[8].x < hand.multi_hand_landmarks[0].landmark[16].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands)   
                 
-            # case 't':
+            case 'x':
+            # flip if thumb knuckle left of thumb tip
+                if hand.multi_hand_landmarks[0].landmark[2].x < hand.multi_hand_landmarks[0].landmark[4].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands)   
                 
-            # case 'u':
-                
-            # case 'v':
-                
-            # case 'w':
-                
-            # case 'x':
-                
-            # case 'y':
+            case 'y':
+            # flip if pinky tip left of thumb tip
+                if hand.multi_hand_landmarks[0].landmark[20].x < hand.multi_hand_landmarks[0].landmark[4].x:
+                    utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands)   
                 
             case _:
                 print('default case of letter matching; error!')
+        
+        # add all the x and y values to create a sum for each of the 21 points
+        # the sum points will be divided by the number of points at the end to get the average
+        
                 
         # key press to clear images or quit in debug mode
         if debug:
@@ -140,6 +195,8 @@ for letter in letters:
                 cv2.destroyAllWindows()
         
     # TODO: averaging
+    
+    
     # store the hand in ideals so we can pickle it later  
     # this is just storing the last hand read
     # we can't store the hand objects directly because they contain all sorts of C++ and tensorflow nonsense; not pickleable
@@ -152,7 +209,7 @@ for letter in letters:
     
 # save ideal hands to a file ideals.pkl
 with open("ideals.pkl", "wb") as f:
-    print(ideals)
+    #print(ideals)
     pickle.dump(ideals, f)
     
 ## OLD CODE
