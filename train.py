@@ -47,7 +47,7 @@ for letter in letters:
 
     for i in range(0, nimpl):
         
-        # load the image and process the 
+        # load the image and process it 
         path = "dataset/SignAlphaSet/" + letter + "/" + letter + "_" + str(i) + ".jpg" # path to each letter image
         if debug: 
             print(path)
@@ -58,10 +58,6 @@ for letter in letters:
         # skip the rest of the loop if no hands detected
         #if not hand.multi_hand_landmarks:
             #continue
-        
-        # draw the non-flipped hand, we will clear this after drawing the flipped hand
-        if debug: 
-            utils.drawLandmarks(hand, image, path, mp_draw, mp_hands)
         
         # some of the hands are mirrored across the veritcal axis; dataset contains left and right handed symbols
         # we need to have the ideal case be averaging across only right signs
@@ -200,9 +196,9 @@ for letter in letters:
         # we do this by subtracting each node's position from the root node
         # iterate over all 21 points in mediapipe hands objects
         for p in range(0, 21):
-            totals.x(p) += hand.multi_hand_landmarks[0].landmark[p].x
-            totals.y(p) += hand.multi_hand_landmarks[0].landmark[p].y
-            totals.z(p) += hand.multi_hand_landmarks[0].landmark[p].z
+            totals['x'][p] += hand.multi_hand_landmarks[0].landmark[p].x
+            totals ['y'][p] += hand.multi_hand_landmarks[0].landmark[p].y
+            totals['z'][p] += hand.multi_hand_landmarks[0].landmark[p].z
                 
         # key press to clear images or quit in debug mode
         if debug:
@@ -220,13 +216,18 @@ for letter in letters:
     # instead we just need the x, y, z values along with a letter ID, so store hand 0 (there should only be one)
     export = []    
     for p in range(0, 21):
-        export.append((totals.x(p)/nimpl, totals.y(p)/nimpl, totals.z(p)/nimpl))
+        export.append((totals['x'][p]/nimpl, totals ['y']/nimpl, totals['z']/nimpl))
         
     ideals.append({"letter" : letter, "landmarks" : export})
     print(f"Idea hand {letter} appended, total hands stored: {len(ideals)}")      
     
     
 # print all the hands on a black canvas 
+# create a black canvas on which to draw ideals (for testing)
+blackCanvas = np.zeros((296, 296, 3), dtype=np.uint8)
+#for i in range(0, 24):
+
+
 
 # save ideal hands to a file ideals.pkl
 with open("ideals.pkl", "wb") as f:
