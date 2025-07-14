@@ -80,15 +80,23 @@ while True:
     frame = cv2.flip(frame, 1)
     hand = Hands.process(frame)
     
-    # always the ideal hand in every frame
-    utils.drawLandmarks(match_ideal, frame, "main", mp_draw, mp_hands)
-                            
+    # drawConnections has to be first so the hands will be drawn over the conencting lines
     if hand.multi_hand_landmarks:
-        utils.drawLandmarks(hand, frame, "main", mp_draw, mp_hands)
+        utils.drawConnections(hand, match_ideal, frame)
+        utils.drawLandmarks(hand, frame, 0, mp_draw, mp_hands)
         
-    print("RMS Dist = " + str(utils.rmsDist(hand, match_ideal)))
+    # always the ideal hand in every frame
+    utils.drawLandmarks(match_ideal, frame, 0, mp_draw, mp_hands)
+    
     # draw stats text on last
-    cv2.putText(frame, "string", (int(0.9*f_height), int(0.9*f_width)), cv2.FONT_HERSHEY_SIMPLEX, 1000, (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.rectangle(frame, (int(0.7*f_width), int(0)), (int(f_width), int(0.3*f_height)), (0, 0, 0), thickness=-1)
+    
+    cv2.putText(frame, "RMS Dist = " + str(utils.rmsDist(hand, match_ideal)), 
+                (int(0.7*f_width), int(0.03*f_height)), cv2.FONT_HERSHEY_SIMPLEX, 
+                0.5, (255, 255, 255), 1, cv2.LINE_AA)
+    
+    # final display the frame for this loop
+    cv2.imshow("ASL Teacher", frame)
 
     # user input and CLI
     if cv2.waitKey(1) & 0xFF == ord('q'):
