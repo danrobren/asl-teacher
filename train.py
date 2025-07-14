@@ -1,25 +1,22 @@
-print("start")
 # This file creates the ideals.pkl file with an averaged hand landmark dataset for every letter
 # Assumption is that SignAlphaSet and its folder convention are used as training data
-
 import string
 import sys
 import pickle
-import json
 import cv2
 import numpy as np
 import mediapipe as mp
-import utils # utils.py custom defines functions
 
-# Load the settings file
-with open("settings.json", "r") as f:
-    settings = json.load(f)
+import utils    # utils.py custom defines functions
+import settings # settings.py constants and Hands configurations
+
+# TODO: figure out why F and X are bad in 999
 
 # debug macro
 debug = 0
 
 # number of images per letter to process
-nimpl = 20
+nimpl = 50
 
 # initialize empty set to store averaged ideal hands
 ideals = []
@@ -32,13 +29,12 @@ mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
 
 # initialize hands processor by calling the constructor cirectly 
-Hands = mp_hands.Hands(**settings["train"])
+Hands = mp_hands.Hands(**settings.Hands_config_train)
 
 # initialize empty hand data object to contain the loaded hands
 hand = []
 
 for letter in letters:
-    print("start letters")
     
     # initialize a structure to hold the each of the sums of all the reltive x, y, z 
     # such that they may be averaged (divided by the total number of pictures processed) at the end
@@ -53,6 +49,10 @@ for letter in letters:
             print(path)
         #image = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB) # open image and convert it to RGB
         image = cv2.imread(path)
+        if image is None:
+            print("No image found at ./" + path)
+            print("Download SignAlphaSet at: https://data.mendeley.com/datasets/8fmvr9m98w/2")
+        
         hand = Hands.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         
         # skip to next image if there are no hands in this one
@@ -175,7 +175,7 @@ for letter in letters:
                     
             case 'W':
             # flip if pointer tip left of ring finger tip
-                if hand.multi_hand_landmarks[0].landmark[8].x < hand.multi_hand_landmarks[0].landmark[16].x:
+                if hand.multi_hand_landmarks[0].landmark[9].x < hand.multi_hand_landmarks[0].landmark[5].x:
                     hand = utils.flipHand(image, debug, "Flipped " + letter + "_" + str(i), mp_draw, mp_hands, Hands)   
                 
             case 'X':
@@ -198,11 +198,12 @@ for letter in letters:
         # this way in the main program we can extract the locations of each point relative to the wrist and compare those to the ideals
         # we do this by subtracting each node's position from the root node
         # iterate over all 21 points in mediapipe hands objects
-        for hand_landmarks in hand.multi_hand_landmarks:
-            for idx, landmark in enumerate(hand_landmarks.landmark):
-                totals['x'][idx] += landmark.x
-                totals['y'][idx] += landmark.y
-                totals['z'][idx] += landmark.z
+        if hand.multi_hand_landmarks:
+            for hand_landmarks in hand.multi_hand_landmarks:
+                for idx, landmark in enumerate(hand_landmarks.landmark):
+                    totals['x'][idx] += landmark.x
+                    totals['y'][idx] += landmark.y
+                    totals['z'][idx] += landmark.z
         
         #print(totals)
                 
@@ -235,7 +236,7 @@ for letter in letters:
      
 for entry in ideals:
     # re-instantiate blackCanvas every time to clear it of the previous hands
-    blackCanvas = np.zeros((296, 296, 3), dtype=np.uint8)
+    blackCanvas = np.zeros((settings.IMAGE_WIDTH, settings.IMAGE_HEIGHT, 3), dtype=np.uint8)
     letter = entry["letter"]
     points = entry["points"]
     utils.drawLandmarks(points, blackCanvas, "Ideal Averaged " + letter, mp_draw, mp_hands)

@@ -69,7 +69,10 @@ def drawLandmarks(hand, image, title, mp_draw, mp_hands):
     cv2.imshow(title, image)
     return
 
-
+# flips a hand about the vertical axis
+# used to normalize all the ieal hands in the training to either left or right
+# takes the image and and returns the flipped hand
+# has display capability if debug
 def flipHand(image, debug, title, mp_draw, mp_hands, Hands):
     image = cv2.flip(image, 1) # code 1 for horizontal flip
     hand = Hands.process(image) # reprocess hands for flipped image
@@ -77,3 +80,57 @@ def flipHand(image, debug, title, mp_draw, mp_hands, Hands):
         print(title)
         drawLandmarks(hand, image, title, mp_draw, mp_hands)
     return hand
+
+# computes the root mean square distance between all the points in two hands
+# this can take inputs as mediaPipe hands or tuple set format hands
+# tuple sets are dicts of the form { 'x': np.zeros(21), 'y': np.zeros(21), 'z': np.zeros(21)} but with filled x, y, z
+# only uses one hand if multiple hands are detected
+def rmsDist(handA, handB):
+    
+    # error checking for null hands and no hands detected
+    if not handA:
+        print("rmsDist HandA Null; returning")
+        return
+    elif not handB:
+        print("rmsDist HandB Null; returning")
+        return
+    elif hasattr(handA, 'multi_hand_landmarks') and not handA.multi_hand_landmarks:
+        print("rmsDist HandA is medapipe object wtih no hands detected; returning")
+        return
+    elif hasattr(handB, 'multi_hand_landmarks') and not handB.multi_hand_landmarks:
+        print("rmsDist HandB is medapipe object with no hands detected; returning")
+        return
+    elif hasattr(handA, 'multi_hand_landmarks') and handA.multi_hand_landmarks[1]:
+        print("Warning: rmsDist HandA is medapipe object wtih multiple hands detected")
+    elif hasattr(handB, 'multi_hand_landmarks') and handB.multi_hand_landmarks[1]:
+        print("Warning: rmsDist HandB is medapipe object with multiple hands detected")
+    
+    # extract all the (x, y, z) from handA and handB if they are mediapipe objects
+    if hasattr(handA, 'multi_hand_landmarks'):
+        handA_convert = []
+        for idx, landmark in enumerate(handA.multi_hand_landmarks[0]):
+            handA_convert['x'][idx] += landmark.x
+            handA_convert['y'][idx] += landmark.y
+            handA_convert['z'][idx] += landmark.z
+        handA = handA_convert
+    if hasattr(handB, 'multi_hand_landmarks'):
+        handB_convert = []
+        for idx, landmark in enumerate(handB.multi_hand_landmarks[0]):
+            handB_convert['x'][idx] += landmark.x
+            handB_convert['y'][idx] += landmark.y
+            handB_convert['z'][idx] += landmark.z
+        handB = handB_convert
+    
+    distPts = []
+    
+    # iterate over each landmark
+    for i in range(0, 21):
+        # calculate the length of the difference vector between point i of handA and handB
+        distPts.append(np.sqrt(
+            pow(handA['x'][i] - handB['x'][i], 2) +
+            pow(handA['y'][i] - handB['y'][i], 2) +
+            pow(handA['z'][i] - handB['z'][i], 2)
+        ))
+        
+    # square then mean then root to get RMS distance
+    return np.sqrt(np.mean(np.square(distPts)))
