@@ -69,32 +69,6 @@ def drawLandmarks(hand, image, title, mp_draw, mp_hands):
                 cv2.putText(image, str(idx), (cx + 5, cy - 5),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.3, color, 1, cv2.LINE_AA)
 
-    # Case 2: Dict of arrays — convert to MediaPipe LandmarkList
-    # elif isinstance(hand, dict) and all(k in hand for k in ['x', 'y', 'z']):
-    #     landmark_list = landmark_pb2.NormalizedLandmarkList()
-
-    #     for i in range(21):
-    #         lm = landmark_pb2.NormalizedLandmark()
-    #         lm.x = float(hand['x'][i])
-    #         lm.y = float(hand['y'][i])
-    #         lm.z = float(hand['z'][i])
-    #         landmark_list.landmark.append(lm)
-
-    #     mp_draw.draw_landmarks(
-    #         image, landmark_list, mp_hands.HAND_CONNECTIONS,
-    #         mp_draw.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2),
-    #         mp_draw.DrawingSpec(color=(255, 0, 0), thickness=2)
-    #     )
-
-    #     for idx, landmark in enumerate(landmark_list.landmark):
-    #         cx, cy = int(landmark.x * w), int(landmark.y * h)
-    #         hue = int(255 * idx / 21)
-    #         color = tuple(int(c) for c in cv2.cvtColor(
-    #             np.uint8([[[hue, 255, 255]]]), cv2.COLOR_HSV2BGR)[0][0])
-    #         cv2.circle(image, (cx, cy), 5, color, thickness=-1)
-    #         cv2.putText(image, str(idx), (cx + 5, cy - 5),
-    #                     cv2.FONT_HERSHEY_SIMPLEX, 0.3, color, 1, cv2.LINE_AA)
-
     else:
         print("drawLandmarks: unrecognized hand format or no hand landmarks found.")
 
@@ -155,7 +129,7 @@ def rmsDist(handA, handB):
             
     if hasattr(handB, 'multi_hand_landmarks'):
         handB_convert =  { 'x': np.zeros(21), 'y': np.zeros(21), 'z': np.zeros(21)}
-        for hand_landmarks in handA.multi_hand_landmarks:
+        for hand_landmarks in handB.multi_hand_landmarks:
             for idx, landmark in enumerate(hand_landmarks.landmark):
                 handB_convert['x'][idx] = landmark.x
                 handB_convert['y'][idx] = landmark.y

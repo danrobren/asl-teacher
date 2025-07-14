@@ -35,75 +35,135 @@ if not cap.isOpened():
     print("Cannot open webcam")
     sys.exit()
     
-# user input
-# TODO: make this more robust, handle uppercase letters, etc.
-# TODO: image as the start screen 
-selection = input("Select a letter of the alphabet to train (capital, no J or Z)")  
-# print(selection)
-# print(type(selection))
-# print(ideals)
-
-match_ideal = []
-# search ideals and gram the matching letter
-# atch_ideal = next((entry for entry in ideals if entry["letter"] == selection), None)
-for entry in ideals:
-    #print(entry["letter"])
-    if entry["letter"] == selection:
-        match_ideal = entry["points"]
-        #print("found it!")
-
-if not match_ideal:
-    print(f"Letter '{selection}' not found.")
-    sys.exit()
-    
-# load a new frame as the first action in the loop
+# scale all the ideal letters to the webcam frame aspect ratio
 ret = []
 while not ret:
-    print("Getting webcam resoltion")
     ret, frame = cap.read()
- 
+
 # squish the letter along the horizontal axis so that it displays properly in the rectangular frame
 f_height, f_width = frame.shape[:2]
-match_ideal['x'] = match_ideal['x']*(f_height/f_width)
+for entry in ideals:
+    entry['points']['x'] = entry['points']['x']*(f_height/f_width)
+    
+# TODO: add "return to menu" capability
+# TODO: wrap the whole CLI menu and program in a state machine
+mode = []
+while mode not in [1, 2]:
+    print("Choose Program Mode:")
+    print("1: Letter Select")
+    print("2: Minimum RMS Distance")
+    mode = int(input(""))
+    if mode not in [1, 2]:
+        print("Please only enter a valid mode")
+        print("")
+    
+match mode:
+    case 1:
+        # user input
+        # TODO: make this more robust, handle uppercase letters, etc.
+        selection = input("Select a letter of the alphabet to train (capital, no J or Z)")  
 
-# arduino-style superloop
-while True:
+        match_ideal = []
+        # search ideals and gram the matching letter
+        # atch_ideal = next((entry for entry in ideals if entry["letter"] == selection), None)
+        for entry in ideals:
+            if entry["letter"] == selection:
+                match_ideal = entry["points"]
+
+        if not match_ideal:
+            print(f"Letter '{selection}' not found.")
+            sys.exit()
+
+        # arduino-style superloop
+        while True:
+            
+            # load a new frame as the first action in the loop
+            ret, frame = cap.read()
+            
+            # if no new frame is detected, skip the whole loop and try again
+            if not ret:
+                continue
+            
+            # get the hand sign that the user is making in the current video frame
+            frame = cv2.flip(frame, 1)
+            hand = Hands.process(frame)
+            
+            # drawConnections has to be first so the hands will be drawn over the conencting lines
+            if hand.multi_hand_landmarks:
+                utils.drawConnections(hand, match_ideal, frame)
+                utils.drawLandmarks(hand, frame, 0, mp_draw, mp_hands)
+                
+            # always the ideal hand in every frame
+            utils.drawLandmarks(match_ideal, frame, 0, mp_draw, mp_hands)
+            
+            # draw stats text on last
+            cv2.rectangle(frame, (int(0.7*f_width), int(0)), (int(f_width), int(0.3*f_height)), (0, 0, 0), thickness=-1)
+            
+            cv2.putText(frame, "RMS Dist = " + str(utils.rmsDist(hand, match_ideal)), 
+                        (int(0.7*f_width), int(0.03*f_height)), cv2.FONT_HERSHEY_SIMPLEX, 
+                        0.5, (255, 255, 255), 1, cv2.LINE_AA)
+            
+            # final display the frame for this loop
+            cv2.imshow("ASL Teacher - Selected Letter" + selection, frame)
+
+            # user input and CLI
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+        cap.release()
+        cv2.destroyAllWindows()
     
-    # load a new frame as the first action in the loop
-    ret, frame = cap.read()
-    
-    # if no new frame is detected, skip the whole loop and try again
-    if not ret:
-        continue
-    
-    # get the hand sign that the user is making in the current video frame
-    frame = cv2.flip(frame, 1)
-    hand = Hands.process(frame)
-    
-    # drawConnections has to be first so the hands will be drawn over the conencting lines
-    if hand.multi_hand_landmarks:
-        utils.drawConnections(hand, match_ideal, frame)
-        utils.drawLandmarks(hand, frame, 0, mp_draw, mp_hands)
+    # minimum RMS distance method
+    case 2:
+        match_letter = []
+        while True: 
+            # load a new frame as the first action in the loop
+            ret, frame = cap.read()
+            
+            # if no new frame is detected, skip the whole loop and try again
+            if not ret:
+                continue
+            
+            # get the hand sign that the user is making in the current video frame
+            frame = cv2.flip(frame, 1)
+            hand = Hands.process(frame)
+            f_height, f_width = frame.shape[:2]
         
-    # always the ideal hand in every frame
-    utils.drawLandmarks(match_ideal, frame, 0, mp_draw, mp_hands)
-    
-    # draw stats text on last
-    cv2.rectangle(frame, (int(0.7*f_width), int(0)), (int(f_width), int(0.3*f_height)), (0, 0, 0), thickness=-1)
-    
-    cv2.putText(frame, "RMS Dist = " + str(utils.rmsDist(hand, match_ideal)), 
-                (int(0.7*f_width), int(0.03*f_height)), cv2.FONT_HERSHEY_SIMPLEX, 
-                0.5, (255, 255, 255), 1, cv2.LINE_AA)
-    
-    # final display the frame for this loop
-    cv2.imshow("ASL Teacher", frame)
+            # setup for matching loop, make minDist start out huge
+            match_ideal = []
+            match_letter = []
+            minDist = 100
+            
+            # search ideals and grab the letter with smallest RMS distance from letter in frame
+            for entry in ideals:
+                dist = utils.rmsDist(entry["points"], hand)
+                if dist < minDist:
+                    match_ideal = entry["points"]
+                    match_letter = entry["letter"]
+                    minDist = dist  
+                    
+            # drawConnections has to be first so the hands will be drawn over the conencting lines
+            if hand.multi_hand_landmarks:
+                utils.drawConnections(hand, match_ideal, frame)
+                utils.drawLandmarks(hand, frame, 0, mp_draw, mp_hands)
+                
+            # always the ideal hand in every frame
+            utils.drawLandmarks(match_ideal, frame, 0, mp_draw, mp_hands)
+            
+            # draw stats text on last
+            cv2.rectangle(frame, (int(0.7*f_width), int(0)), (int(f_width), int(0.3*f_height)), (0, 0, 0), thickness=-1)
+            
+            cv2.putText(frame, "RMS Dist = " + str(utils.rmsDist(hand, match_ideal)), 
+                        (int(0.7*f_width), int(0.03*f_height)), cv2.FONT_HERSHEY_SIMPLEX, 
+                        0.5, (255, 255, 255), 1, cv2.LINE_AA)
+            
+            # final display the frame for this loop
+            cv2.imshow("ASL Teacher - Minimum RMS Distance", frame)
 
-    # user input and CLI
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-cap.release()
-cv2.destroyAllWindows()
+            # user input and CLI
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+                
 
     
 # TODO: clever algorithm to implement a decision tree for hands 
