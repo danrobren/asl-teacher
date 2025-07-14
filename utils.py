@@ -64,7 +64,7 @@ def drawLandmarks(hand, image, title, mp_draw, mp_hands):
                         cv2.FONT_HERSHEY_SIMPLEX, 0.3, color, 1, cv2.LINE_AA)
 
     else:
-        print("Unrecognized hand format or no hand landmarks found.")
+        print("drawLandmarks: unrecognized hand format or no hand landmarks found.")
 
     cv2.imshow(title, image)
     return
@@ -100,26 +100,29 @@ def rmsDist(handA, handB):
     elif hasattr(handB, 'multi_hand_landmarks') and not handB.multi_hand_landmarks:
         print("rmsDist HandB is medapipe object with no hands detected; returning")
         return
-    elif hasattr(handA, 'multi_hand_landmarks') and handA.multi_hand_landmarks[1]:
-        print("Warning: rmsDist HandA is medapipe object wtih multiple hands detected")
-    elif hasattr(handB, 'multi_hand_landmarks') and handB.multi_hand_landmarks[1]:
-        print("Warning: rmsDist HandB is medapipe object with multiple hands detected")
+    # elif hasattr(handA, 'multi_hand_landmarks') and handA.multi_hand_landmarks[1]:
+    #     print("Warning: rmsDist HandA is medapipe object wtih multiple hands detected")
+    # elif hasattr(handB, 'multi_hand_landmarks') and handB.multi_hand_landmarks[1]:
+    #     print("Warning: rmsDist HandB is medapipe object with multiple hands detected")
     
     # extract all the (x, y, z) from handA and handB if they are mediapipe objects
     if hasattr(handA, 'multi_hand_landmarks'):
-        handA_convert = []
-        for idx, landmark in enumerate(handA.multi_hand_landmarks[0]):
-            handA_convert['x'][idx] += landmark.x
-            handA_convert['y'][idx] += landmark.y
-            handA_convert['z'][idx] += landmark.z
-        handA = handA_convert
+        handA_convert =  { 'x': np.zeros(21), 'y': np.zeros(21), 'z': np.zeros(21)}
+        for hand_landmarks in handA.multi_hand_landmarks:
+            for idx, landmark in enumerate(hand_landmarks.landmark):
+                handA_convert['x'][idx] = landmark.x
+                handA_convert['y'][idx] = landmark.y
+                handA_convert['z'][idx] = landmark.z
+            handA = handA_convert
+            
     if hasattr(handB, 'multi_hand_landmarks'):
-        handB_convert = []
-        for idx, landmark in enumerate(handB.multi_hand_landmarks[0]):
-            handB_convert['x'][idx] += landmark.x
-            handB_convert['y'][idx] += landmark.y
-            handB_convert['z'][idx] += landmark.z
-        handB = handB_convert
+        handB_convert =  { 'x': np.zeros(21), 'y': np.zeros(21), 'z': np.zeros(21)}
+        for hand_landmarks in handA.multi_hand_landmarks:
+            for idx, landmark in enumerate(hand_landmarks.landmark):
+                handB_convert['x'][idx] = landmark.x
+                handB_convert['y'][idx] = landmark.y
+                handB_convert['z'][idx] = landmark.z
+            handB = handB_convert
     
     distPts = []
     
