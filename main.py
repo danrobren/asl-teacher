@@ -3,6 +3,7 @@
 import cv2
 import mediapipe as mp
 import string
+import time
 import sys
 import pickle
 import numpy as np
@@ -73,7 +74,8 @@ match mode:
         if not match_ideal:
             print(f"Letter '{selection}' not found.")
             sys.exit()
-
+            
+        prev_time = 1
         # arduino-style superloop
         while True:
             
@@ -99,9 +101,17 @@ match mode:
             # draw stats text on last
             cv2.rectangle(frame, (int(0.7*f_width), int(0)), (int(f_width), int(0.3*f_height)), (0, 0, 0), thickness=-1)
             
+            # display score
             cv2.putText(frame, "RMS Dist = " + str(utils.rmsDist(hand, match_ideal)), 
-                        (int(0.7*f_width), int(0.03*f_height)), cv2.FONT_HERSHEY_SIMPLEX, 
-                        0.5, (255, 255, 255), 1, cv2.LINE_AA)
+                (int(0.7*f_width), int(0.03*f_height)), cv2.FONT_HERSHEY_SIMPLEX, 
+                0.5, (255, 255, 255), 1, cv2.LINE_AA)
+            
+            # display frames per second
+            current_time = time.time()
+            cv2.putText(frame, "FPS = " + str(1/(current_time - prev_time)), 
+                (int(0.7*f_width), int(0.08*f_height)), cv2.FONT_HERSHEY_SIMPLEX, 
+                0.5, (255, 255, 255), 1, cv2.LINE_AA)
+            prev_time = current_time
             
             # final display the frame for this loop
             cv2.imshow("ASL Teacher - Selected Letter" + selection, frame)
@@ -115,6 +125,9 @@ match mode:
     
     # minimum RMS distance method
     case 2:
+        
+        # initialize some things
+        prev_time = 1
         match_letter = []
         while True: 
             # load a new frame as the first action in the loop
@@ -156,6 +169,13 @@ match mode:
             cv2.putText(frame, "RMS Dist = " + str(utils.rmsDist(hand, match_ideal)), 
                         (int(0.7*f_width), int(0.03*f_height)), cv2.FONT_HERSHEY_SIMPLEX, 
                         0.5, (255, 255, 255), 1, cv2.LINE_AA)
+            
+            # display frames per second
+            current_time = time.time()
+            cv2.putText(frame, "FPS = " + str(1/(current_time - prev_time)), 
+                (int(0.7*f_width), int(0.08*f_height)), cv2.FONT_HERSHEY_SIMPLEX, 
+                0.5, (255, 255, 255), 1, cv2.LINE_AA)
+            prev_time = current_time
             
             # final display the frame for this loop
             cv2.imshow("ASL Teacher - Minimum RMS Distance", frame)
