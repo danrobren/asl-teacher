@@ -29,6 +29,31 @@ with open('ideals.pkl', 'rb') as f:
     if not f:
         print("Ideal hands dataset (ideals.pkl) not found. Please run train.py.")
     ideals = pickle.load(f)
+
+
+
+# handle detecting left or right handed symbols by appending a flipped version of every hand to ideals
+ideals_original = ideals.copy()
+for entry in ideals_original:
+    print("Flipping ideal " + entry["letter"])
+
+    # Flip x-values as a NumPy array
+    x_vals = entry["points"]["x"]
+    x_flipped = 1.0 - x_vals  # NumPy vectorized subtraction
+
+    # Build the new flipped 'points' dict
+    points_flipped = {
+        "x": x_flipped,
+        "y": entry["points"]["y"],
+        "z": entry["points"]["z"]
+    }
+
+    # Append the flipped version with the same letter
+    ideals.append({
+        "letter": entry["letter"],
+        "points": points_flipped
+    })
+
     
 # open webcam with opencv
 cap = cv2.VideoCapture(0)
@@ -44,7 +69,7 @@ while not ret:
 # squish the letter along the horizontal axis so that it displays properly in the rectangular frame
 f_height, f_width = frame.shape[:2]
 for entry in ideals:
-    entry['points']['x'] = entry['points']['x']*(f_height/f_width)
+    entry['points']['x'] *= (f_height/f_width)
     
 # TODO: add "return to menu" capability
 # TODO: wrap the whole CLI menu and program in a state machine
@@ -65,6 +90,7 @@ match mode:
         selection = input("Select a letter of the alphabet to train (capital, no J or Z)")  
 
         match_ideal = []
+        # TODO: be able to select between left and right handed letters
         # search ideals and gram the matching letter
         # atch_ideal = next((entry for entry in ideals if entry["letter"] == selection), None)
         for entry in ideals:
@@ -99,19 +125,29 @@ match mode:
             utils.drawLandmarks(match_ideal, frame, 0, mp_draw, mp_hands)
             
             # draw stats text on last
-            cv2.rectangle(frame, (int(0.7*f_width), int(0)), (int(f_width), int(0.3*f_height)), (0, 0, 0), thickness=-1)
+            cv2.rectangle(frame, (int(0.7*f_width), int(0)), (int(f_width), int(0.15*f_height)), (0, 0, 0), thickness=-1)
             
             # display score
-            cv2.putText(frame, "RMS Dist = " + str(utils.rmsDist(hand, match_ideal)), 
-                (int(0.7*f_width), int(0.03*f_height)), cv2.FONT_HERSHEY_SIMPLEX, 
-                0.5, (255, 255, 255), 1, cv2.LINE_AA)
+            if hand.multi_hand_landmarks:
+                score = 100 - 100 * utils.rmsDist(hand, match_ideal)
+            else:
+                score = 0
+            score_text = f"Score = {score:.2f}"  # 2 decimal places
+            cv2.putText(frame, score_text, (int(0.7*f_width), int(0.03*f_height)), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
             
             # display frames per second
             current_time = time.time()
-            cv2.putText(frame, "FPS = " + str(1/(current_time - prev_time)), 
-                (int(0.7*f_width), int(0.08*f_height)), cv2.FONT_HERSHEY_SIMPLEX, 
-                0.5, (255, 255, 255), 1, cv2.LINE_AA)
+            fps = 1/(current_time - prev_time)
+            fps_text = f"FPS = {fps:.2f}"
+            cv2.putText(frame, fps_text, (int(0.7*f_width), int(0.08*f_height)), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
             prev_time = current_time
+            
+            # display detected letter
+            cv2.putText(frame, "Selected Letter = " + selection, 
+            (int(0.7*f_width), int(0.13*f_height)), cv2.FONT_HERSHEY_SIMPLEX, 
+            0.5, (255, 255, 255), 1, cv2.LINE_AA)
             
             # final display the frame for this loop
             cv2.imshow("ASL Teacher - Selected Letter" + selection, frame)
@@ -128,7 +164,6 @@ match mode:
         
         # initialize some things
         prev_time = 1
-        match_letter = []
         while True: 
             # load a new frame as the first action in the loop
             ret, frame = cap.read()
@@ -144,7 +179,6 @@ match mode:
         
             # setup for matching loop, make minDist start out huge
             match_ideal = []
-            match_letter = []
             minDist = 100
             
             # search ideals and grab the letter with smallest RMS distance from letter in frame
@@ -164,18 +198,29 @@ match mode:
             utils.drawLandmarks(match_ideal, frame, 0, mp_draw, mp_hands)
             
             # draw stats text on last
-            cv2.rectangle(frame, (int(0.7*f_width), int(0)), (int(f_width), int(0.3*f_height)), (0, 0, 0), thickness=-1)
-            
-            cv2.putText(frame, "RMS Dist = " + str(utils.rmsDist(hand, match_ideal)), 
-                        (int(0.7*f_width), int(0.03*f_height)), cv2.FONT_HERSHEY_SIMPLEX, 
-                        0.5, (255, 255, 255), 1, cv2.LINE_AA)
+            cv2.rectangle(frame, (int(0.7*f_width), int(0)), (int(f_width), int(0.15*f_height)), (0, 0, 0), thickness=-1)
+                        
+            # display score
+            if hand.multi_hand_landmarks:
+                score = 100 - 100 * utils.rmsDist(hand, match_ideal)
+            else:
+                score = 0
+            score_text = f"Score = {score:.2f}"  # 2 decimal places
+            cv2.putText(frame, score_text, (int(0.7*f_width), int(0.03*f_height)), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
             
             # display frames per second
             current_time = time.time()
-            cv2.putText(frame, "FPS = " + str(1/(current_time - prev_time)), 
-                (int(0.7*f_width), int(0.08*f_height)), cv2.FONT_HERSHEY_SIMPLEX, 
-                0.5, (255, 255, 255), 1, cv2.LINE_AA)
+            fps = 1/(current_time - prev_time)
+            fps_text = f"FPS = {fps:.2f}"
+            cv2.putText(frame, fps_text, (int(0.7*f_width), int(0.08*f_height)), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
             prev_time = current_time
+            
+            # display detected letter
+            cv2.putText(frame, "Detected Letter = " + match_letter, 
+            (int(0.7*f_width), int(0.13*f_height)), cv2.FONT_HERSHEY_SIMPLEX, 
+            0.5, (255, 255, 255), 1, cv2.LINE_AA)
             
             # final display the frame for this loop
             cv2.imshow("ASL Teacher - Minimum RMS Distance", frame)
