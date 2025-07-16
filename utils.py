@@ -178,3 +178,16 @@ def drawConnections(handA, handB, image):
         x1, y1 = int(handA['x'][i] * w), int(handA['y'][i] * h)
         x2, y2 = int(handB['x'][i] * w), int(handB['y'][i] * h)
         cv2.line(image, (x1, y1), (x2, y2), (0, 0, 255), thickness=1)
+        
+# TODO: put display params (font, size, colors, etc) in settings.py
+def drawStats(stats, image):
+    f_height, f_width = image.shape[:2]
+    
+    cv2.rectangle(image, (int(0.7*f_width), int(0)), (int(f_width), int(len(stats)*0.055*f_height)), (0, 0, 0), thickness=-1)
+
+    count = 1
+    for text in stats:
+        cv2.putText(image, text, (int(0.72*f_width), int(0.03+0.05*count*f_height)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+        count = count +1
+    return image
