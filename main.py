@@ -74,15 +74,21 @@ for entry in ideals:
 # TODO: add "return to menu" capability
 # TODO: wrap the whole CLI menu and program in a state machine
 mode = []
-while mode not in [1, 2]:
-    print("Choose Program Mode:")
-    print("1: Letter Select")
-    print("2: Minimum RMS Distance")
-    mode = int(input(""))
-    if mode not in [1, 2]:
-        print("Please only enter a valid mode")
-        print("")
-    
+while mode not in [1, 2, 3]:
+    try:
+        print("Choose Program Mode:")
+        print("1: Letter Select")
+        print("2: Minimum RMS Distance")
+        print("3: Curl Tree Detector")
+        mode = int(input(""))
+        if mode not in [1, 2, 3] or not isinstance(mode, int):
+            raise ValueError("Please only enter a valid mode (1, 2, 3)\n")
+    except ValueError as e:
+        print(e)
+        
+# initialize FPS time tracker
+prev_time = 1
+            
 match mode:
     case 1:
         # user input
@@ -151,9 +157,6 @@ match mode:
     
     # minimum RMS distance method
     case 2:
-        
-        # initialize some things
-        prev_time = 1
         while True: 
             # load a new frame as the first action in the loop
             ret, frame = cap.read()
@@ -208,6 +211,44 @@ match mode:
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
                 
+    case 3:
+        while True:
+            # calculate frames per second
+            current_time = time.time()
+            fps = 1/(current_time - prev_time)
+            prev_time = current_time
+            
+            # get the hand sign that the user is making in the current video frame
+            frame = cv2.flip(frame, 1)
+            hand = Hands.process(frame)
+            f_height, f_width = frame.shape[:2]
+            
+            # get curls of each finger
+            # unique variable names so the tree algorithm is easier to read
+            curlThumb = utils.curl(hand, 0)
+            curlIndex = utils.curl(hand, 1)
+            curlMiddle = utils.curl(hand, 2)
+            curlRing = utils.curl(hand, 3)
+            curlPinky = utils.curl(hand, 4)
+            
+            utils.drawStats([f"FPS = {fps:.2f}",
+                                "Finger Curl Stats:"
+                                f"Thumb = {curlThumb:.2f}",
+                                f"Index = {curlIndex:.2f}",
+                                f"Middle = {curlMiddle:.2f}",
+                                f"Ring = {curlRing:.2f}",
+                                f"Pinky = {curlPinky:.2f}",
+                                ],
+                            frame)
+            
+            # drawConnections has to be first so the hands will be drawn over the conencting lines
+            if hand.multi_hand_landmarks:
+                utils.drawLandmarks(hand, frame, 0, mp_draw, mp_hands)
+                
+            # final display the frame for this loop
+            cv2.imshow("ASL Teacher - Minimum RMS Distance", frame)
 
-    
-# TODO: clever algorithm to implement a decision tree for hands 
+            # user input and CLI
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+            

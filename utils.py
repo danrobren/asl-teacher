@@ -191,3 +191,39 @@ def drawStats(stats, image):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
         count = count +1
     return image
+
+# TODO: curl
+def curl(hand, finger):    
+    # points in ascending order that represent the joint of the finger
+    # thumb => [1, 2, 3, 4]
+    # index => [5, 6, 7, 8]
+    # middle => [9, 10, 11, 12]
+    # ring => [13, 14, 15, 16]
+    # pinky => [17, 18, 19, 20]
+    base_indices = {
+        0: [1, 2, 3, 4],    # thumb
+        1: [5, 6, 7, 8],    # index
+        2: [9, 10, 11, 12], # middle
+        3: [13, 14, 15, 16],# ring
+        4: [17, 18, 19, 20] # pinky
+    }
+    points = base_indices.get(finger, [1, 2, 3, 4])
+
+    # extract the hand points corresponding to the indices in the points variable
+    # assume hand['points'] is a list of dicts with 'x' and 'y' keys
+    joints = [hand['points'][i] for i in points]
+
+    dxprox = joints[0]['x'] - joints[1]['x'] # x distance between proximal two joints
+    dyprox = joints[0]['y'] - joints[1]['y'] # y distance between proximal two joints
+    dxdist = joints[2]['x'] - joints[3]['x'] # x distance between distal two joints
+    dydist = joints[2]['y'] - joints[3]['y'] # y distance between distal two joints
+
+    # get the angle of the proximal segment with respect to the frame horizontal
+    angprox = np.arctan2(dyprox, dxprox)
+
+    # get the angle of the distal segment with respect to the frame horizontal
+    angdist = np.arctan2(dydist, dxdist)
+
+    # return the angle between the proximal and distal segments
+    return angprox - angdist
+        
