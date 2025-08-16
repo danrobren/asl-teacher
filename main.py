@@ -16,29 +16,28 @@ import settings  # settings.py constants and Hands configurations
 print("Welcome to ASL Teacher")
 
 
-UDP_IP = "127.0.0.1"#intended to run on same computer as unity
-UDP_PORT = 5005# Create a UDP socket for sending data
+UDP_IP = "127.0.0.1"  # intended to run on same computer as unity
+UDP_PORT = 5005  # Create a UDP socket for sending data
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 # ====================================================================
 
-def send_udp_hand(hand_result):
+def send_udp_hand(hand_result, letter=None):
     """
     Sends a JSON payload over UDP:
       { "present": bool, "landmarks": [{"x":..,"y":..,"z":..} x21] }
     hand_result: the object returned by MediaPipe Hands.process(...)
     """
-    try:#Send the detected hand landmarks over UDP as JSON.
+    try:
         if hand_result and hand_result.multi_hand_landmarks:
-            lm_list = []# Build a list of dictionaries for each of the 21 landmarks
+            lm_list = []
             for lm in hand_result.multi_hand_landmarks[0].landmark:
                 lm_list.append({"x": float(lm.x), "y": float(lm.y), "z": float(lm.z)})
-            payload = {"present": True, "landmarks": lm_list}
+            payload = {"present": True, "letter": letter, "landmarks": lm_list}
         else:
-            payload = {"present": False}# No hand detected, send a "present=False" message
-        data = json.dumps(payload, separators=(",", ":")).encode("utf-8") # Convert payload to JSON string, then to bytes
-        sock.sendto(data, (UDP_IP, UDP_PORT))  # Send packet over UDP
-    except Exception as e:
-        # Don't crash the app if UDP hiccups; just print once in a while
+            payload = {"present": False, "letter": None}
+        data = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        sock.sendto(data, (UDP_IP, UDP_PORT))
+    except Exception:
         pass
 
 # constants and settings
@@ -138,34 +137,39 @@ try:
 
                 # get the hand sign that the user is making in the current video frame
                 frame = cv2.flip(frame, 1)
-                hand = Hands.process(frame)
+                hand = Hands.process(frame)  # Detect hand
 
-                
-                send_udp_hand(hand)#send landmarks over UDP
+                detected_letter = None  # We add a quick matching loop to get current letter for unity visualization
+                if hand and hand.multi_hand_landmarks:
+                    minDist_tmp = 1e9
+                    for entry in ideals:
+                        d = utils.rmsDist(entry["points"], hand)
+                        if d < minDist_tmp:
+                            minDist_tmp = d
+                            detected_letter = entry["letter"]
 
-                # drawConnections has to be first so the hands will be drawn over the connecting lines
+                send_udp_hand(hand, detected_letter)  # UDP send
+                # --------------------------------------------------------------
+
+                # draw / score as before
                 if hand.multi_hand_landmarks:
                     utils.drawConnections(hand, match_ideal, frame)
                     utils.drawLandmarks(hand, frame, 0, mp_draw, mp_hands)
 
-                # always draw ideal hand
                 utils.drawLandmarks(match_ideal, frame, 0, mp_draw, mp_hands)
 
-                # calculate score
                 if hand.multi_hand_landmarks:
                     score = 100 - 100 * utils.rmsDist(hand, match_ideal)
                 else:
                     score = 0
 
-                # calculate frames per second
-                current_time = time.time()
-                fps = 1 / (current_time - prev_time + 1e-9)
-                prev_time = current_time
-
-                utils.drawStats([f"Score = {score:.2f}",
-                                 f"FPS = {fps:.2f}",
-                                 "Selected Letter = " + selection],
-                                frame)
+                utils.drawStats(
+                    [f"Score = {score:.2f}",
+                     f"FPS = {fps:.2f}",
+                     "Selected Letter = " + selection,
+                     "Detected Letter = " + (detected_letter or "?")],  # NEW: show detected letter
+                    frame
+                )
 
                 # final display the frame for this loop
                 cv2.imshow("ASL Teacher - Selected Letter " + selection, frame)
@@ -182,22 +186,17 @@ try:
             while True:
                 # load a new frame as the first action in the loop
                 ret, frame = cap.read()
-
-                # if no new frame is detected, skip the whole loop and try again
                 if not ret:
                     continue
 
-                # get the hand sign that the user is making in the current video frame
                 frame = cv2.flip(frame, 1)
                 hand = Hands.process(frame)
                 f_height, f_width = frame.shape[:2]
 
-                send_udp_hand(hand)#send landmarks over UDP
-
                 # setup for matching loop, make minDist start out huge
                 match_ideal = []
                 match_letter = "?"
-                minDist = 100
+                minDist = 1002
 
                 # search ideals and grab the letter with smallest RMS distance from letter in frame
                 for entry in ideals:
@@ -206,6 +205,9 @@ try:
                         match_ideal = entry["points"]
                         match_letter = entry["letter"]
                         minDist = dist
+
+                
+                send_udp_hand(hand, match_letter)#UDP
 
                 # drawConnections has to be first so the hands will be drawn over the connecting lines
                 if hand.multi_hand_landmarks:
@@ -225,72 +227,11 @@ try:
                 prev_time = current_time
 
                 utils.drawStats([f"Score = {score:.2f}",
-                                 f"FPS = {fps:.2f}",
-                                 "Detected Letter = " + match_letter],
+                                f"FPS = {fps:.2f}",
+                                "Detected Letter = " + match_letter],
                                 frame)
 
-                # final display the frame for this loop
                 cv2.imshow("ASL Teacher - Minimum RMS Distance", frame)
-
-                # user input and CLI
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
-
-        case 3:
-            prev_time = time.time()
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    continue
-                frame = cv2.flip(frame, 1)
-                hand = Hands.process(frame)
-
-                send_udp_hand(hand)
-
-                match_letter = "?"
-                if hand and hand.multi_hand_landmarks:
-                    curls = utils.all_curls(hand)
-                    thumb, index, middle, ring, pinky = curls
-                    open_thr = 0.7
-                    closed_thr = 1.4
-
-                    if (index > closed_thr and middle > closed_thr and
-                        ring > closed_thr and pinky > closed_thr and
-                        thumb < closed_thr):
-                        match_letter = "A"
-                    elif (index < open_thr and middle < open_thr and
-                          ring < open_thr and pinky < open_thr and
-                          thumb > closed_thr):
-                        match_letter = "B"
-                    elif (index > closed_thr and middle < open_thr and
-                          ring < open_thr and pinky < open_thr and
-                          thumb > closed_thr):
-                        match_letter = "F"
-                    elif (index < open_thr and middle > closed_thr and
-                          ring > closed_thr and pinky > closed_thr and
-                          thumb > closed_thr):
-                        match_letter = "D"
-                    elif (open_thr < index < closed_thr and
-                          middle > closed_thr and ring > closed_thr and
-                          pinky > closed_thr and thumb > closed_thr):
-                        match_letter = "X"
-                    elif (index > closed_thr and middle > closed_thr and
-                          ring > closed_thr and pinky > closed_thr and
-                          thumb > closed_thr):
-                        match_letter = "E"
-
-                if hand.multi_hand_landmarks:
-                    utils.drawLandmarks(hand, frame, 0, mp_draw, mp_hands)
-
-                current_time = time.time()
-                fps = 1 / (current_time - prev_time + 1e-9)
-                prev_time = current_time
-
-                utils.drawStats([f"FPS = {fps:.2f}",
-                                 "Detected Letter = " + match_letter],
-                                frame)
-
-                cv2.imshow("ASL Teacher - Curl Decision Tree", frame)
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
