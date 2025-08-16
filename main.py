@@ -235,6 +235,65 @@ try:
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
+
+        case 3:
+            prev_time = time.time()
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    continue
+                frame = cv2.flip(frame, 1)
+                hand = Hands.process(frame)
+
+                send_udp_hand(hand)
+
+                match_letter = "?"
+                if hand and hand.multi_hand_landmarks:
+                    curls = utils.all_curls(hand)
+                    thumb, index, middle, ring, pinky = curls
+                    open_thr = 0.7
+                    closed_thr = 1.4
+
+                    if (index > closed_thr and middle > closed_thr and
+                        ring > closed_thr and pinky > closed_thr and
+                        thumb < closed_thr):
+                        match_letter = "A"
+                    elif (index < open_thr and middle < open_thr and
+                          ring < open_thr and pinky < open_thr and
+                          thumb > closed_thr):
+                        match_letter = "B"
+                    elif (index > closed_thr and middle < open_thr and
+                          ring < open_thr and pinky < open_thr and
+                          thumb > closed_thr):
+                        match_letter = "F"
+                    elif (index < open_thr and middle > closed_thr and
+                          ring > closed_thr and pinky > closed_thr and
+                          thumb > closed_thr):
+                        match_letter = "D"
+                    elif (open_thr < index < closed_thr and
+                          middle > closed_thr and ring > closed_thr and
+                          pinky > closed_thr and thumb > closed_thr):
+                        match_letter = "X"
+                    elif (index > closed_thr and middle > closed_thr and
+                          ring > closed_thr and pinky > closed_thr and
+                          thumb > closed_thr):
+                        match_letter = "E"
+
+                if hand.multi_hand_landmarks:
+                    utils.drawLandmarks(hand, frame, 0, mp_draw, mp_hands)
+
+                current_time = time.time()
+                fps = 1 / (current_time - prev_time + 1e-9)
+                prev_time = current_time
+
+                utils.drawStats([f"FPS = {fps:.2f}",
+                                 "Detected Letter = " + match_letter],
+                                frame)
+
+                cv2.imshow("ASL Teacher - Curl Decision Tree", frame)
+
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
 finally:
     try:
         cap.release()
