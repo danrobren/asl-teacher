@@ -98,15 +98,16 @@ for entry in ideals:
 # TODO: add "return to menu" capability
 # TODO: wrap the whole CLI menu and program in a state machine
 mode = 0
-while mode not in [1, 2]:
+while mode not in [1, 2, 3]:
     print("Choose Program Mode:")
     print("1: Letter Select")
     print("2: Minimum RMS Distance")
+    print("3: Curl Decision Tree")
     try:
         mode = int(input(""))
     except:
         mode = 0
-    if mode not in [1, 2]:
+    if mode not in [1, 2, 3]:
         print("Please only enter a valid mode\n")
 
 try:
@@ -234,6 +235,65 @@ try:
                 # user input and CLI
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
+
+        case 3:
+            prev_time = time.time()
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    continue
+                frame = cv2.flip(frame, 1)
+                hand = Hands.process(frame)
+
+                send_udp_hand(hand)
+
+                match_letter = "?"
+                if hand and hand.multi_hand_landmarks:
+                    curls = utils.all_curls(hand)
+                    thumb, index, middle, ring, pinky = curls
+                    open_thr = 0.7
+                    closed_thr = 1.4
+
+                    if (index > closed_thr and middle > closed_thr and
+                        ring > closed_thr and pinky > closed_thr and
+                        thumb < closed_thr):
+                        match_letter = "A"
+                    elif (index < open_thr and middle < open_thr and
+                          ring < open_thr and pinky < open_thr and
+                          thumb > closed_thr):
+                        match_letter = "B"
+                    elif (index > closed_thr and middle < open_thr and
+                          ring < open_thr and pinky < open_thr and
+                          thumb > closed_thr):
+                        match_letter = "F"
+                    elif (index < open_thr and middle > closed_thr and
+                          ring > closed_thr and pinky > closed_thr and
+                          thumb > closed_thr):
+                        match_letter = "D"
+                    elif (open_thr < index < closed_thr and
+                          middle > closed_thr and ring > closed_thr and
+                          pinky > closed_thr and thumb > closed_thr):
+                        match_letter = "X"
+                    elif (index > closed_thr and middle > closed_thr and
+                          ring > closed_thr and pinky > closed_thr and
+                          thumb > closed_thr):
+                        match_letter = "E"
+
+                if hand.multi_hand_landmarks:
+                    utils.drawLandmarks(hand, frame, 0, mp_draw, mp_hands)
+
+                current_time = time.time()
+                fps = 1 / (current_time - prev_time + 1e-9)
+                prev_time = current_time
+
+                utils.drawStats([f"FPS = {fps:.2f}",
+                                 "Detected Letter = " + match_letter],
+                                frame)
+
+                cv2.imshow("ASL Teacher - Curl Decision Tree", frame)
+
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
 finally:
     try:
         cap.release()
@@ -248,4 +308,3 @@ finally:
     except:
         pass
 
-# TODO: clever algorithm to implement a decision tree for hands

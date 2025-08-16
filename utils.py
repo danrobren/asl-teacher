@@ -192,14 +192,39 @@ def drawStats(stats, image):
         count = count +1
     return image
 
-# TODO: curl
-def curl(hand, finger):    
-    # points in ascending order that represent the joint of the finger
-    # thumb => [1, 2, 3, 4]
-    # index => [5, 6, 7, 8]
-    # middle => [9, 10, 11, 12]
-    # ring => [13, 14, 15, 16]
-    # pinky => [17, 18, 19, 20]
+def finger_curl(hand, finger):
+    """Return the curl angle (radians) of a finger.
+
+    Parameters
+    ----------
+    hand : mediapipe result or dict
+        Hand landmarks either from MediaPipe Hands or in our internal
+        dict format of numpy arrays for 'x', 'y', 'z'.
+    finger : int
+        Finger index 0=thumb .. 4=pinky.
+
+    Notes
+    -----
+    The angle is computed between the proximal and distal segments of the
+    finger and is always positive. Larger values indicate a more curled
+    finger. If the hand cannot be parsed the function returns 0.
+    """
+
+    if hand is None:
+        return 0.0
+
+    # Convert MediaPipe result to dict format
+    if hasattr(hand, 'multi_hand_landmarks'):
+        coords = {'x': np.zeros(21), 'y': np.zeros(21), 'z': np.zeros(21)}
+        for idx, lm in enumerate(hand.multi_hand_landmarks[0].landmark):
+            coords['x'][idx] = lm.x
+            coords['y'][idx] = lm.y
+            coords['z'][idx] = lm.z
+        hand = coords
+
+    if not isinstance(hand, dict):
+        return 0.0
+
     base_indices = {
         0: [1, 2, 3, 4],    # thumb
         1: [5, 6, 7, 8],    # index
@@ -209,21 +234,18 @@ def curl(hand, finger):
     }
     points = base_indices.get(finger, [1, 2, 3, 4])
 
-    # extract the hand points corresponding to the indices in the points variable
-    # assume hand['points'] is a list of dicts with 'x' and 'y' keys
-    joints = [hand['points'][i] for i in points]
+    pts = [(hand['x'][i], hand['y'][i], hand['z'][i]) for i in points]
 
-    dxprox = joints[0]['x'] - joints[1]['x'] # x distance between proximal two joints
-    dyprox = joints[0]['y'] - joints[1]['y'] # y distance between proximal two joints
-    dxdist = joints[2]['x'] - joints[3]['x'] # x distance between distal two joints
-    dydist = joints[2]['y'] - joints[3]['y'] # y distance between distal two joints
+    v1 = np.array(pts[0]) - np.array(pts[1])
+    v2 = np.array(pts[2]) - np.array(pts[3])
 
-    # get the angle of the proximal segment with respect to the frame horizontal
-    angprox = np.arctan2(dyprox, dxprox)
+    v1 = v1 / (np.linalg.norm(v1) + 1e-9)
+    v2 = v2 / (np.linalg.norm(v2) + 1e-9)
 
-    # get the angle of the distal segment with respect to the frame horizontal
-    angdist = np.arctan2(dydist, dxdist)
+    cosang = np.clip(np.dot(v1, v2), -1.0, 1.0)
+    return np.arccos(cosang)
 
-    # return the angle between the proximal and distal segments
-    return angprox - angdist
+def all_curls(hand):
+    """Return curl angles for all five fingers."""
+    return [finger_curl(hand, i) for i in range(5)]
         
