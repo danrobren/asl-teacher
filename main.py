@@ -19,7 +19,21 @@ print("Welcome to ASL Teacher")
 UDP_IP = "127.0.0.1"  # intended to run on same computer as unity
 UDP_PORT = 5005  # Create a UDP socket for sending data
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-# ====================================================================
+# ─────────────────────────────────────────────────────────────
+EXE_NAME   = "ASLUnityBridge.exe"  # Unity launch config (same folder as this script)
+WIDTH      = 800
+HEIGHT     = 800
+
+def launch_unity_windowed(exe_name=EXE_NAME, width=WIDTH, height=HEIGHT):
+    exe_path = os.path.join(os.path.dirname(__file__), exe_name)
+    args = [exe_path, "-screen-fullscreen", "0", "-screen-width", str(width), "-screen-height", str(height)]  # normal windowed
+    try:
+        subprocess.Popen(args, shell=False)
+        print("Launched Unity:", " ".join(args))
+    except Exception as e:
+        print("Failed to launch Unity exe:", e)
+
+# ─────────────────────────────────────────────────────────────
 
 def send_udp_hand(hand_result, letter=None):
     """
@@ -110,6 +124,8 @@ while mode not in [1, 2, 3]:
         print("Please only enter a valid mode\n")
 
 try:
+    launch_unity_windowed(EXE_NAME, WIDTH, HEIGHT) #launches the .exe window afte decision is made
+    
     match mode:
         case 1:
             # user input
