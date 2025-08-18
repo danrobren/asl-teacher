@@ -17,48 +17,12 @@ import settings  # settings.py constants and Hands configurations
 
 print("Welcome to ASL Teacher")
 
-
-UDP_IP = "127.0.0.1"  # intended to run on same computer as unity
-UDP_PORT = 5005  # Create a UDP socket for sending data
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-# ─────────────────────────────────────────────────────────────
-EXE_NAME   = "ASLUnityBridge.exe"  # Unity launch config (same folder as this script)
-WIDTH      = 800
-HEIGHT     = 800
-
-def launch_unity_windowed(exe_name=EXE_NAME, width=WIDTH, height=HEIGHT):
-    exe_path = os.path.join(os.path.dirname(__file__), exe_name)
-    args = [exe_path, "-screen-fullscreen", "0", "-screen-width", str(width), "-screen-height", str(height)]  # normal windowed
-    try:
-        subprocess.Popen(args, shell=False)
-        print("Launched Unity:", " ".join(args))
-    except Exception as e:
-        print("Failed to launch Unity exe:", e)
-
-# ─────────────────────────────────────────────────────────────
-
-def send_udp_hand(hand_result, letter=None):
-    """
-    Sends a JSON payload over UDP:
-      { "present": bool, "landmarks": [{"x":..,"y":..,"z":..} x21] }
-    hand_result: the object returned by MediaPipe Hands.process(...)
-    """
-    try:
-        if hand_result and hand_result.multi_hand_landmarks:
-            lm_list = []
-            for lm in hand_result.multi_hand_landmarks[0].landmark:
-                lm_list.append({"x": float(lm.x), "y": float(lm.y), "z": float(lm.z)})
-            payload = {"present": True, "letter": letter, "landmarks": lm_list}
-        else:
-            payload = {"present": False, "letter": None}
-        data = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-        sock.sendto(data, (UDP_IP, UDP_PORT))
-    except Exception:
-        pass
-
 # constants and settings
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
+
+# initialize socket connection for unity
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # initialize hand landmarker (hands)
 Hands = mp_hands.Hands(**settings.Hands_config_main)
@@ -126,14 +90,23 @@ while mode not in [1, 2, 3]:
         print("Please only enter a valid mode\n")
 
 try:
-    launch_unity_windowed(EXE_NAME, WIDTH, HEIGHT) #launches the .exe window afte decision is made
+    #launches the .exe window afte decision is made
+    utils.launch_unity_windowed(settings.EXE_NAME, settings.UNITY_WIDTH, settings.UNITY_HEIGHT)
     
     match mode:
+# ─────────────────────────────────────────────────────────────
+# letter select case
         case 1:
-            # user input
+            
+            # initialize time for FPS calculation
+            prev_time = time.time()
+            
+            # capture user input for selected ASL letter
             selection = input("Select a letter of the alphabet to train (capital, no J or Z)")
 
+            # initialize empty ideal matched letter
             match_ideal = []
+            
             # search ideals and grab the matching letter
             for entry in ideals:
                 if entry["letter"] == selection:
@@ -143,7 +116,6 @@ try:
                 print(f"Letter '{selection}' not found.")
                 sys.exit()
 
-            prev_time = time.time()
             # arduino-style superloop
             while True:
                 # load a new frame as the first action in the loop
@@ -155,7 +127,7 @@ try:
 
                 # get the hand sign that the user is making in the current video frame
                 frame = cv2.flip(frame, 1)
-                hand = Hands.process(frame)  # Detect hand
+                hand = Hands.process(frame)
 
                 detected_letter = None  # We add a quick matching loop to get current letter for unity visualization
                 if hand and hand.multi_hand_landmarks:
@@ -166,20 +138,28 @@ try:
                             minDist_tmp = d
                             detected_letter = entry["letter"]
 
-                send_udp_hand(hand, detected_letter)  # UDP send
-                # --------------------------------------------------------------
+                # UDP send to Unity for 3D display
+                utils.send_udp_hand(hand, sock, detected_letter)  
 
-                # draw / score as before
+                # only draw the user's hand if it is detected in the frame 
                 if hand.multi_hand_landmarks:
                     utils.drawConnections(hand, match_ideal, frame)
                     utils.drawLandmarks(hand, frame, 0, mp_draw, mp_hands)
-
+                    
+                # draw dots representing the hand landmarks of the ideal hand onto the openCV frame
+                # always draw the ideal hand landmarks
                 utils.drawLandmarks(match_ideal, frame, 0, mp_draw, mp_hands)
 
+                # calculate score
                 if hand.multi_hand_landmarks:
                     score = 100 - 100 * utils.rmsDist(hand, match_ideal)
                 else:
                     score = 0
+                    
+                # calculate instantaneous frames per second in this frame
+                current_time = time.time()
+                fps = 1 / (current_time - prev_time + 1e-9)
+                prev_time = current_time
 
                 utils.drawStats(
                     [f"Score = {score:.2f}",
@@ -198,8 +178,16 @@ try:
 
             cap.release()
             cv2.destroyAllWindows()
-
+# ─────────────────────────────────────────────────────────────
+# minimum RMS distance case
         case 2:
+            print("Minimum RMS Distance Algorithm Selected")
+            
+            
+# ─────────────────────────────────────────────────────────────
+# augmented curl tree case
+        case 3:
+            print("Augmented Curl Tree Algorithm Selected")
             prev_time = time.time()
             while True:
                 # load a new frame as the first action in the loop
@@ -213,7 +201,7 @@ try:
 
                 # setup for matching loop, make minDist start out huge
                 match_ideal = []
-                match_letter = "?"
+                match_letter = "A"
                 minDist = 1002
 
                 # search ideals and grab the letter with smallest RMS distance from letter in frame
@@ -267,7 +255,7 @@ try:
                                 break
 
 
-                send_udp_hand(hand, match_letter)  # UDP
+                utils.send_udp_hand(hand, sock, match_letter)  # UDP
 
                 # drawConnections has to be first so the hands will be drawn over the connecting lines
                 if hand.multi_hand_landmarks:
@@ -295,6 +283,7 @@ try:
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
+        
 
 finally:
     try:
