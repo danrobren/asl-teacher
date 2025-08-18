@@ -3,6 +3,9 @@
 # each subfolder contains 1000 images of the ASL sign for that letter
 /dataset/SignAlphaSet
 
+# VSCode Project Files? (unsure of what this really is)
+.vs/
+
 # standard error dump from mediapipe C++ backend
 train-stderr.txt
 

@@ -9,6 +9,8 @@ import pickle
 import numpy as np
 import json
 import socket
+import subprocess
+import os
 
 import utils  # utils.py custom defines functions
 import settings  # settings.py constants and Hands configurations
@@ -19,7 +21,21 @@ print("Welcome to ASL Teacher")
 UDP_IP = "127.0.0.1"  # intended to run on same computer as unity
 UDP_PORT = 5005  # Create a UDP socket for sending data
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-# ====================================================================
+# ─────────────────────────────────────────────────────────────
+EXE_NAME   = "ASLUnityBridge.exe"  # Unity launch config (same folder as this script)
+WIDTH      = 800
+HEIGHT     = 800
+
+def launch_unity_windowed(exe_name=EXE_NAME, width=WIDTH, height=HEIGHT):
+    exe_path = os.path.join(os.path.dirname(__file__), exe_name)
+    args = [exe_path, "-screen-fullscreen", "0", "-screen-width", str(width), "-screen-height", str(height)]  # normal windowed
+    try:
+        subprocess.Popen(args, shell=False)
+        print("Launched Unity:", " ".join(args))
+    except Exception as e:
+        print("Failed to launch Unity exe:", e)
+
+# ─────────────────────────────────────────────────────────────
 
 def send_udp_hand(hand_result, letter=None):
     """
@@ -110,6 +126,8 @@ while mode not in [1, 2, 3]:
         print("Please only enter a valid mode\n")
 
 try:
+    launch_unity_windowed(EXE_NAME, WIDTH, HEIGHT) #launches the .exe window afte decision is made
+    
     match mode:
         case 1:
             # user input
@@ -206,8 +224,50 @@ try:
                         match_letter = entry["letter"]
                         minDist = dist
 
-                
-                send_udp_hand(hand, match_letter)#UDP
+                # integrate curl-based heuristics for high-curl letters
+                if hand and hand.multi_hand_landmarks:
+                    curls = utils.all_curls(hand)
+                    thumb, index, middle, ring, pinky = curls
+                    closed_thr = 1.4
+                    if (thumb > closed_thr and index > closed_thr and
+                        middle > closed_thr and ring > closed_thr and
+                        pinky > closed_thr):
+                        lm = hand.multi_hand_landmarks[0].landmark
+                        thumb_tip = lm[4]
+                        index_tip = lm[8]
+                        middle_tip = lm[12]
+                        ring_tip = lm[16]
+                        pinky_tip = lm[20]
+                        right_hand = index_tip.x < pinky_tip.x
+                        if right_hand:
+                            if thumb_tip.x < index_tip.x:
+                                match_letter = "S"
+                            elif thumb_tip.x < middle_tip.x:
+                                match_letter = "T"
+                            elif thumb_tip.x < ring_tip.x:
+                                match_letter = "N"
+                            elif thumb_tip.x < pinky_tip.x:
+                                match_letter = "M"
+                            else:
+                                match_letter = "E"
+                        else:
+                            if thumb_tip.x > index_tip.x:
+                                match_letter = "S"
+                            elif thumb_tip.x > middle_tip.x:
+                                match_letter = "T"
+                            elif thumb_tip.x > ring_tip.x:
+                                match_letter = "N"
+                            elif thumb_tip.x > pinky_tip.x:
+                                match_letter = "M"
+                            else:
+                                match_letter = "E"
+                        for entry in ideals:
+                            if entry["letter"] == match_letter:
+                                match_ideal = entry["points"]
+                                break
+
+
+                send_udp_hand(hand, match_letter)  # UDP
 
                 # drawConnections has to be first so the hands will be drawn over the connecting lines
                 if hand.multi_hand_landmarks:
@@ -236,64 +296,6 @@ try:
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
 
-        case 3:
-            prev_time = time.time()
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    continue
-                frame = cv2.flip(frame, 1)
-                hand = Hands.process(frame)
-
-                send_udp_hand(hand)
-
-                match_letter = "?"
-                if hand and hand.multi_hand_landmarks:
-                    curls = utils.all_curls(hand)
-                    thumb, index, middle, ring, pinky = curls
-                    open_thr = 0.7
-                    closed_thr = 1.4
-
-                    if (index > closed_thr and middle > closed_thr and
-                        ring > closed_thr and pinky > closed_thr and
-                        thumb < closed_thr):
-                        match_letter = "A"
-                    elif (index < open_thr and middle < open_thr and
-                          ring < open_thr and pinky < open_thr and
-                          thumb > closed_thr):
-                        match_letter = "B"
-                    elif (index > closed_thr and middle < open_thr and
-                          ring < open_thr and pinky < open_thr and
-                          thumb > closed_thr):
-                        match_letter = "F"
-                    elif (index < open_thr and middle > closed_thr and
-                          ring > closed_thr and pinky > closed_thr and
-                          thumb > closed_thr):
-                        match_letter = "D"
-                    elif (open_thr < index < closed_thr and
-                          middle > closed_thr and ring > closed_thr and
-                          pinky > closed_thr and thumb > closed_thr):
-                        match_letter = "X"
-                    elif (index > closed_thr and middle > closed_thr and
-                          ring > closed_thr and pinky > closed_thr and
-                          thumb > closed_thr):
-                        match_letter = "E"
-
-                if hand.multi_hand_landmarks:
-                    utils.drawLandmarks(hand, frame, 0, mp_draw, mp_hands)
-
-                current_time = time.time()
-                fps = 1 / (current_time - prev_time + 1e-9)
-                prev_time = current_time
-
-                utils.drawStats([f"FPS = {fps:.2f}",
-                                 "Detected Letter = " + match_letter],
-                                frame)
-
-                cv2.imshow("ASL Teacher - Curl Decision Tree", frame)
-
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
 finally:
     try:
         cap.release()
