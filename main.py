@@ -9,6 +9,8 @@ import pickle
 import numpy as np
 import json
 import socket
+import subprocess
+import os
 
 import utils  # utils.py custom defines functions
 import settings  # settings.py constants and Hands configurations
