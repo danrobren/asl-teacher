@@ -18,35 +18,6 @@ import json
 # TODO: proper documentation with inputs, outputs, and behavior for each function
 # TODO: length error checking for 21 landmarks in each obejct in all functions
 
-def launch_unity_windowed(exe_name=settings.EXE_NAME, width=settings.Unity_WIDTH, height=settings.Unity_HEIGHT):
-    exe_path = os.path.join(os.path.dirname(__file__), exe_name)
-    args = [exe_path, "-screen-fullscreen", "0", "-screen-width", str(width), "-screen-height", str(height)]  # normal windowed
-    try:
-        subprocess.Popen(args, shell=False)
-        print("Launched Unity:", " ".join(args))
-    except Exception as e:
-        print("Failed to launch Unity exe:", e)
-
-
-def send_udp_hand(hand_result, sock, letter=None):
-    """
-    Sends a JSON payload over UDP:
-      { "present": bool, "landmarks": [{"x":..,"y":..,"z":..} x21] }
-    hand_result: the object returned by MediaPipe Hands.process(...)
-    """
-    try:
-        if hand_result and hand_result.multi_hand_landmarks:
-            lm_list = []
-            for lm in hand_result.multi_hand_landmarks[0].landmark:
-                lm_list.append({"x": float(lm.x), "y": float(lm.y), "z": float(lm.z)})
-            payload = {"present": True, "letter": letter, "landmarks": lm_list}
-        else:
-            payload = {"present": False, "letter": None}
-        data = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-        sock.sendto(data, (settings.UDP_IP, settings.UDP_PORT))
-    except Exception:
-        pass
-
 # pass the draw and hands objects so we don't have to re-instantiate them here
 # how hands are drawn is controlled by the caller
 def drawLandmarks(hand, image, title, mp_draw, mp_hands):
