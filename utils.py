@@ -1,4 +1,7 @@
 # Custom defined functions to help main.py and train.py
+import json
+import os
+import subprocess
 import cv2
 import string
 import sys
@@ -6,6 +9,7 @@ from types import SimpleNamespace
 import numpy as np
 import mediapipe as mp
 from mediapipe.framework.formats import landmark_pb2
+import settings
 
 # TODO: proper documentation with inputs, outputs, and behavior for each function
 # TODO: length error checking for 21 landmarks in each obejct in all functions
@@ -249,3 +253,67 @@ def all_curls(hand):
     """Return curl angles for all five fingers."""
     return [finger_curl(hand, i) for i in range(5)]
         
+        
+# ─────────────────────────────────────────────────────────────
+# UDP → Unity
+
+
+# Optional: auto-launch a Unity build (place EXE next to this script)
+
+def launch_unity_windowed(exe_name=settings.EXE_NAME, width=settings.Unity_WIDTH, height=settings.Unity_HEIGHT):
+    exe_path = os.path.join(os.path.dirname(__file__), exe_name)
+    if not os.path.isfile(exe_path):
+        return
+    args = [
+        exe_path,
+        "-screen-fullscreen", "0",
+        "-screen-width",  str(width),
+        "-screen-height", str(height),
+    ]
+    try:
+        subprocess.Popen(args, shell=False)
+        print("Launched Unity:", " ".join(args))
+    except Exception as e:
+        print("Failed to launch Unity exe:", e)
+
+def _points_to_udp_list(points_dict):
+    """
+    Convert an 'ideal' points dict into a JSON-friendly list.
+    points_dict: {"x": np.array(21), "y": np.array(21), "z": np.array(21)}
+    returns: [{"x":..,"y":..,"z":..} x21]  or None on error
+    """
+    try:
+        x, y, z = points_dict["x"], points_dict["y"], points_dict["z"]
+        n = min(len(x), len(y), len(z), 21)
+        return [{"x": float(x[i]), "y": float(y[i]), "z": float(z[i])} for i in range(n)]
+    except Exception:
+        return None
+
+def send_udp_hand(sock,hand_result, letter=None, ideal_points=None):
+    """
+    Sends JSON over UDP:
+      {
+        "present":   bool,
+        "letter":    str|None,
+        "landmarks": [{"x":..,"y":..,"z":..} x21],   # live frame (0..1 coords from MediaPipe)
+        "ideal":     [{"x":..,"y":..,"z":..} x21]|null
+      }
+    """
+    try:
+        if hand_result and hand_result.multi_hand_landmarks:
+            lm_list = [
+                {"x": float(lm.x), "y": float(lm.y), "z": float(lm.z)}
+                for lm in hand_result.multi_hand_landmarks[0].landmark
+            ]
+            payload = {"present": True, "letter": letter, "landmarks": lm_list}
+        else:
+            payload = {"present": False, "letter": None, "landmarks": []}
+
+        payload["ideal"] = _points_to_udp_list(ideal_points) if ideal_points is not None else None
+
+        data = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        sock.sendto(data, (settings.UDP_IP, settings.UDP_PORT))
+    except Exception:
+        # UDP is fire-and-forget; swallow transient errors
+        pass
+# ─────────────────────────────────────────────────────────────

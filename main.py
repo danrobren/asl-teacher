@@ -16,75 +16,7 @@ import utils      # utils.py custom helper functions
 import settings   # settings.py constants and Hands configurations
 
 print("Welcome to ASL Teacher")
-
-# ─────────────────────────────────────────────────────────────
-# UDP → Unity
-UDP_IP   = "127.0.0.1"     # intended to run on same computer as Unity
-UDP_PORT = 5005
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-# Optional: auto-launch a Unity build (place EXE next to this script)
-EXE_NAME = "ASLUnityBridge.exe"
-WIDTH    = 1600
-HEIGHT   = 800
-
-def launch_unity_windowed(exe_name=EXE_NAME, width=WIDTH, height=HEIGHT):
-    exe_path = os.path.join(os.path.dirname(__file__), exe_name)
-    if not os.path.isfile(exe_path):
-        return
-    args = [
-        exe_path,
-        "-screen-fullscreen", "0",
-        "-screen-width",  str(width),
-        "-screen-height", str(height),
-    ]
-    try:
-        subprocess.Popen(args, shell=False)
-        print("Launched Unity:", " ".join(args))
-    except Exception as e:
-        print("Failed to launch Unity exe:", e)
-
-def _points_to_udp_list(points_dict):
-    """
-    Convert an 'ideal' points dict into a JSON-friendly list.
-    points_dict: {"x": np.array(21), "y": np.array(21), "z": np.array(21)}
-    returns: [{"x":..,"y":..,"z":..} x21]  or None on error
-    """
-    try:
-        x, y, z = points_dict["x"], points_dict["y"], points_dict["z"]
-        n = min(len(x), len(y), len(z), 21)
-        return [{"x": float(x[i]), "y": float(y[i]), "z": float(z[i])} for i in range(n)]
-    except Exception:
-        return None
-
-def send_udp_hand(hand_result, letter=None, ideal_points=None):
-    """
-    Sends JSON over UDP:
-      {
-        "present":   bool,
-        "letter":    str|None,
-        "landmarks": [{"x":..,"y":..,"z":..} x21],   # live frame (0..1 coords from MediaPipe)
-        "ideal":     [{"x":..,"y":..,"z":..} x21]|null
-      }
-    """
-    try:
-        if hand_result and hand_result.multi_hand_landmarks:
-            lm_list = [
-                {"x": float(lm.x), "y": float(lm.y), "z": float(lm.z)}
-                for lm in hand_result.multi_hand_landmarks[0].landmark
-            ]
-            payload = {"present": True, "letter": letter, "landmarks": lm_list}
-        else:
-            payload = {"present": False, "letter": None, "landmarks": []}
-
-        payload["ideal"] = _points_to_udp_list(ideal_points) if ideal_points is not None else None
-
-        data = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-        sock.sendto(data, (UDP_IP, UDP_PORT))
-    except Exception:
-        # UDP is fire-and-forget; swallow transient errors
-        pass
-# ─────────────────────────────────────────────────────────────
 
 # MediaPipe setup
 mp_hands = mp.solutions.hands
@@ -145,7 +77,7 @@ while mode not in [1, 2, 3]:
         print("Please only enter a valid mode\n")
 
 # Optionally launch Unity (if EXE present next to script)
-launch_unity_windowed(EXE_NAME, WIDTH, HEIGHT)
+utils.launch_unity_windowed(settings.EXE_NAME, settings.Unity_WIDTH, settings.Unity_HEIGHT)
 
 try:
     if mode == 1:
@@ -182,7 +114,7 @@ try:
                         detected_letter = entry["letter"]
 
             # Send live + ideal
-            send_udp_hand(hand, detected_letter, match_ideal)
+            utils.send_udp_hand(sock,hand, detected_letter, match_ideal)
 
             # Draw overlays
             if hand and hand.multi_hand_landmarks:
@@ -275,7 +207,7 @@ try:
                             break
 
             # Send live + ideal
-            send_udp_hand(hand, match_letter, match_ideal)
+            utils.send_udp_hand(sock,hand, match_letter, match_ideal)
 
             # Draw overlays
             if hand and hand.multi_hand_landmarks:
@@ -368,7 +300,7 @@ try:
                         break
 
             # Send live + ideal
-            send_udp_hand(hand, match_letter if match_letter != "?" else None, match_ideal)
+            utils.send_udp_hand(sock, hand, match_letter if match_letter != "?" else None, match_ideal)
 
             # Draw overlays
             if hand and hand.multi_hand_landmarks and match_ideal is not None:
