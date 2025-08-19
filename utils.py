@@ -18,7 +18,7 @@ import json
 # TODO: proper documentation with inputs, outputs, and behavior for each function
 # TODO: length error checking for 21 landmarks in each obejct in all functions
 
-def launch_unity_windowed(exe_name=settings.EXE_NAME, width=settings.UNITY_WIDTH, height=settings.UNITY_HEIGHT):
+def launch_unity_windowed(exe_name=settings.EXE_NAME, width=settings.Unity_WIDTH, height=settings.Unity_HEIGHT):
     exe_path = os.path.join(os.path.dirname(__file__), exe_name)
     args = [exe_path, "-screen-fullscreen", "0", "-screen-width", str(width), "-screen-height", str(height)]  # normal windowed
     try:
