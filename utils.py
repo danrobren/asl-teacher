@@ -119,13 +119,44 @@ def drawLandmarks(hand, image, title, mp_draw, mp_hands):
 # used to normalize all the ieal hands in the training to either left or right
 # takes the image and and returns the flipped hand
 # has display capability if debug
-def flipHand(image, debug, title, mp_draw, mp_hands, Hands):
-    image = cv2.flip(image, 1) # code 1 for horizontal flip
-    hand = Hands.process(image) # reprocess hands for flipped image
-    if debug:
-        print(title)
-        drawLandmarks(hand, image, title, mp_draw, mp_hands)
-    return hand
+def flipHand(hand):
+    """
+    Reflects the hand landmarks about the vertical axis (x -> 1-x).
+    Accepts a MediaPipe hand object or a dict with 'x', 'y', 'z' arrays.
+    Returns a new hand object of the same type with flipped x coordinates.
+    """
+    # Handle dict format
+    if isinstance(hand, dict) and all(k in hand for k in ['x', 'y', 'z']):
+        flipped = {
+            'x': 1.0 - np.array(hand['x']),
+            'y': np.array(hand['y']),
+            'z': np.array(hand['z'])
+        }
+        return flipped
+
+    # Handle MediaPipe hand object
+    if hasattr(hand, 'multi_hand_landmarks') and hand.multi_hand_landmarks:
+        from types import SimpleNamespace
+        from mediapipe.framework.formats import landmark_pb2
+
+        flipped_hand = SimpleNamespace()
+        flipped_hand.multi_hand_landmarks = []
+
+        for hand_landmarks in hand.multi_hand_landmarks:
+            flipped_landmarks = landmark_pb2.NormalizedLandmarkList()
+            for lm in hand_landmarks.landmark:
+                flipped_lm = landmark_pb2.NormalizedLandmark()
+                flipped_lm.x = 1.0 - lm.x
+                flipped_lm.y = lm.y
+                flipped_lm.z = lm.z
+                flipped_landmarks.landmark.append(flipped_lm)
+            flipped_hand.multi_hand_landmarks.append(flipped_landmarks)
+        return flipped_hand
+    else:
+        print("Unrecognized hand format, returing")
+        # If input is not recognized, return as is
+        return hand
+
 
 # computes the root mean square distance between all the points in two hands
 # this can take inputs as mediaPipe hands or tuple set format hands
