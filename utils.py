@@ -9,10 +9,43 @@ from types import SimpleNamespace
 import numpy as np
 import mediapipe as mp
 from mediapipe.framework.formats import landmark_pb2
+import socket
+import subprocess
+import os
 import settings
+import json
 
 # TODO: proper documentation with inputs, outputs, and behavior for each function
 # TODO: length error checking for 21 landmarks in each obejct in all functions
+
+def launch_unity_windowed(exe_name=settings.EXE_NAME, width=settings.UNITY_WIDTH, height=settings.UNITY_HEIGHT):
+    exe_path = os.path.join(os.path.dirname(__file__), exe_name)
+    args = [exe_path, "-screen-fullscreen", "0", "-screen-width", str(width), "-screen-height", str(height)]  # normal windowed
+    try:
+        subprocess.Popen(args, shell=False)
+        print("Launched Unity:", " ".join(args))
+    except Exception as e:
+        print("Failed to launch Unity exe:", e)
+
+
+def send_udp_hand(hand_result, sock, letter=None):
+    """
+    Sends a JSON payload over UDP:
+      { "present": bool, "landmarks": [{"x":..,"y":..,"z":..} x21] }
+    hand_result: the object returned by MediaPipe Hands.process(...)
+    """
+    try:
+        if hand_result and hand_result.multi_hand_landmarks:
+            lm_list = []
+            for lm in hand_result.multi_hand_landmarks[0].landmark:
+                lm_list.append({"x": float(lm.x), "y": float(lm.y), "z": float(lm.z)})
+            payload = {"present": True, "letter": letter, "landmarks": lm_list}
+        else:
+            payload = {"present": False, "letter": None}
+        data = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        sock.sendto(data, (settings.UDP_IP, settings.UDP_PORT))
+    except Exception:
+        pass
 
 # pass the draw and hands objects so we don't have to re-instantiate them here
 # how hands are drawn is controlled by the caller
@@ -89,13 +122,44 @@ def drawLandmarks(hand, image, title, mp_draw, mp_hands):
 # used to normalize all the ieal hands in the training to either left or right
 # takes the image and and returns the flipped hand
 # has display capability if debug
-def flipHand(image, debug, title, mp_draw, mp_hands, Hands):
-    image = cv2.flip(image, 1) # code 1 for horizontal flip
-    hand = Hands.process(image) # reprocess hands for flipped image
-    if debug:
-        print(title)
-        drawLandmarks(hand, image, title, mp_draw, mp_hands)
-    return hand
+def flipHand(hand):
+    """
+    Reflects the hand landmarks about the vertical axis (x -> 1-x).
+    Accepts a MediaPipe hand object or a dict with 'x', 'y', 'z' arrays.
+    Returns a new hand object of the same type with flipped x coordinates.
+    """
+    # Handle dict format
+    if isinstance(hand, dict) and all(k in hand for k in ['x', 'y', 'z']):
+        flipped = {
+            'x': 1.0 - np.array(hand['x']),
+            'y': np.array(hand['y']),
+            'z': np.array(hand['z'])
+        }
+        return flipped
+
+    # Handle MediaPipe hand object
+    if hasattr(hand, 'multi_hand_landmarks') and hand.multi_hand_landmarks:
+        from types import SimpleNamespace
+        from mediapipe.framework.formats import landmark_pb2
+
+        flipped_hand = SimpleNamespace()
+        flipped_hand.multi_hand_landmarks = []
+
+        for hand_landmarks in hand.multi_hand_landmarks:
+            flipped_landmarks = landmark_pb2.NormalizedLandmarkList()
+            for lm in hand_landmarks.landmark:
+                flipped_lm = landmark_pb2.NormalizedLandmark()
+                flipped_lm.x = 1.0 - lm.x
+                flipped_lm.y = lm.y
+                flipped_lm.z = lm.z
+                flipped_landmarks.landmark.append(flipped_lm)
+            flipped_hand.multi_hand_landmarks.append(flipped_landmarks)
+        return flipped_hand
+    else:
+        print("Unrecognized hand format, returing")
+        # If input is not recognized, return as is
+        return hand
+
 
 # computes the root mean square distance between all the points in two hands
 # this can take inputs as mediaPipe hands or tuple set format hands

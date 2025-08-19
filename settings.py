@@ -23,7 +23,6 @@ Unity_HEIGHT   = 600
 
 Hands_config_train = {
     "model_complexity": 1,
-    "static_image_mode": True,
     "min_detection_confidence": 0.5,
     "min_tracking_confidence": 0.0
   }
