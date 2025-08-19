@@ -1,0 +1,53 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Wavelengths: 400 to 700 nm in 50 nm steps
+wavelengths_nm = np.arange(400, 701, 50)
+wavelengths_um = wavelengths_nm / 1000  # convert to micrometers
+
+# Sellmeier equations
+def n_bk7(wl_um):
+    B1, B2, B3 = 1.03961212, 0.231792344, 1.01046945
+    C1, C2, C3 = 0.00600069867, 0.0200179144, 103.560653
+    wl2 = wl_um**2
+    return np.sqrt(1 + (B1*wl2)/(wl2 - C1) + (B2*wl2)/(wl2 - C2) + (B3*wl2)/(wl2 - C3))
+
+def n_baf10(wl_um):
+    B1, B2, B3 = 1.3101, 0.1961, 0.9383
+    C1, C2, C3 = 0.01043, 0.04813, 111.7
+    wl2 = wl_um**2
+    return np.sqrt(1 + (B1*wl2)/(wl2 - C1) + (B2*wl2)/(wl2 - C2) + (B3*wl2)/(wl2 - C3))
+
+# Lens parameters
+R1 = 7.4
+R2 = -7.4
+R3 = 7.4
+d1 = 1.7
+d2 = 1.0
+d = d1 + d2
+
+# Loop over wavelengths
+focal_lengths = []
+for wl in wavelengths_um:
+    n1 = n_bk7(wl)
+    n2 = n_baf10(wl)
+
+    # Crown glass power (thick lens)
+    Phi1 = (n1 - 1) * ((1/R1 - 1/R2) + ((n1 - 1)*d1)/(n1 * R1 * R2))
+
+    # Flint glass power (single curved surface)
+    Phi2 = (n2 - 1) * (1/R3)
+
+    # Total power
+    Phi_total = Phi1 + Phi2 - d * Phi1 * Phi2
+    f_eff = 1 / Phi_total
+    focal_lengths.append(f_eff)
+
+# Plot
+plt.plot(wavelengths_nm, focal_lengths, marker='o')
+plt.title('Chromatic Focal Shift (Ray Transfer Matrix Method)')
+plt.xlabel('Wavelength (nm)')
+plt.ylabel('Effective Focal Length (cm)')
+plt.grid(True)
+plt.tight_layout()
+plt.show()
