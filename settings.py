@@ -17,13 +17,12 @@ IMAGE_HEIGHT = 296
 UDP_IP   = "127.0.0.1"     # intended to run on same computer as Unity
 UDP_PORT = 5005
 
-EXE_NAME = "ASLUnityBridge.exe"
+EXE_NAME = "Unity\ASLUnityBridge.exe"
 Unity_WIDTH    = 1300
 Unity_HEIGHT   = 600
 
 Hands_config_train = {
     "model_complexity": 1,
-    "static_image_mode": True,
     "min_detection_confidence": 0.5,
     "min_tracking_confidence": 0.0
   }
