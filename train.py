@@ -60,14 +60,9 @@ for letter in letters:
             print("No hand detected, continuing")
             continue
         
-        if letter == 'F':
-            print(hand.multi_hand_landmarks[0])
-        
         # if the above if statement returned false and we're still in the loop that means there's a hand in the frame
         # increment the number of detections
         detections += 1
-        
-        # print(f"Detected {len(hand.multi_hand_landmarks)} hand(s) for letter {letter}, index {detections}" )
         
         # some of the hands are mirrored across the veritcal axis; dataset contains left and right handed symbols
         # we need to have the ideal case be averaging across only right signs
@@ -101,8 +96,6 @@ for letter in letters:
                 
             case 'F':
             # flip if pointer finger tip left of pinky tip
-                if hasattr(hand, 'multi_hand_landmarks') and hand.multi_hand_landmarks:
-                    print("hand contains a mediapipe hand")
                 if hand.multi_hand_landmarks[0].landmark[8].x < hand.multi_hand_landmarks[0].landmark[20].x:
                     hand = utils.flipHand(hand) 
                 
