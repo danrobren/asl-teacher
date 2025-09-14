@@ -14,7 +14,11 @@ import settings # settings.py constants and Hands configurations
 debug = 0
 
 # number of images per letter to process
+<<<<<<< HEAD
 nimpl = 100
+=======
+nimpl = 10
+>>>>>>> FinalVer
 
 # initialize empty set to store averaged ideal hands
 ideals = []
@@ -60,6 +64,7 @@ for letter in letters:
             print("No hand detected, continuing")
             continue
         
+<<<<<<< HEAD
         if letter == 'F':
             print(hand.multi_hand_landmarks[0])
         
@@ -68,6 +73,11 @@ for letter in letters:
         detections += 1
         
         # print(f"Detected {len(hand.multi_hand_landmarks)} hand(s) for letter {letter}, index {detections}" )
+=======
+        # if the above if statement returned false and we're still in the loop that means there's a hand in the frame
+        # increment the number of detections
+        detections += 1
+>>>>>>> FinalVer
         
         # some of the hands are mirrored across the veritcal axis; dataset contains left and right handed symbols
         # we need to have the ideal case be averaging across only right signs
@@ -200,11 +210,6 @@ for letter in letters:
                 print('default case of letter matching; error!')
         # end match letter
         
-        # what really matters for hand detection is not the absolute position of the hand relative to the image frame
-        # we don't care whether the symbol is at the edge of the frame or the center
-        # we want the **relative** positions of the landmarks relative to the wrist
-        # this way in the main program we can extract the locations of each point relative to the wrist and compare those to the ideals
-        # we do this by subtracting each node's position from the root node
         # iterate over all 21 points in mediapipe hands objects
         if hand.multi_hand_landmarks:
             for hand_landmarks in hand.multi_hand_landmarks:
@@ -258,5 +263,4 @@ for entry in ideals:
 
 # save ideal hands to a file ideals.pkl
 with open("ideals.pkl", "wb") as f:
-    #print(ideals)
     pickle.dump(ideals, f)

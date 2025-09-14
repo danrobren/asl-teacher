@@ -1,7 +1,5 @@
 # Custom defined functions to help main.py and train.py
 import json
-import os
-import subprocess
 import cv2
 import string
 import sys
@@ -16,7 +14,7 @@ import settings
 import json
 
 # TODO: proper documentation with inputs, outputs, and behavior for each function
-# TODO: length error checking for 21 landmarks in each obejct in all functions
+# TODO: length error checking for 21 landmarks in each object in all functions
 
 # pass the draw and hands objects so we don't have to re-instantiate them here
 # how hands are drawn is controlled by the caller

@@ -33,7 +33,6 @@ with open('ideals.pkl', 'rb') as f:
 # Duplicate & flip ideals to support left/right hands
 ideals_original = ideals.copy()
 for entry in ideals_original:
-    print("Flipping ideal " + entry["letter"])
     x_vals = entry["points"]["x"]           # numpy array
     x_flipped = 1.0 - x_vals                # horizontal flip in normalized space
     ideals.append({
@@ -64,16 +63,15 @@ for entry in ideals:
 
 # Mode select
 mode = 0
-while mode not in [1, 2, 3]:
+while mode not in [1, 2]:
     print("Choose Program Mode:")
     print("1: Letter Select")
-    print("2: Minimum RMS Distance")
-    print("3: Curl Decision Tree")
+    print("2: Detect Letter Sign")
     try:
         mode = int(input(""))
     except:
         mode = 0
-    if mode not in [1, 2, 3]:
+    if mode not in [1, 2]:
         print("Please only enter a valid mode\n")
 
 # Optionally launch Unity (if EXE present next to script)
@@ -104,17 +102,8 @@ try:
             frame = cv2.flip(frame, 1)
             hand  = Hands.process(frame)
 
-            detected_letter = None
-            if hand and hand.multi_hand_landmarks:
-                minDist_tmp = 1e9
-                for entry in ideals:
-                    d = utils.rmsDist(entry["points"], hand)
-                    if d < minDist_tmp:
-                        minDist_tmp = d
-                        detected_letter = entry["letter"]
-
             # Send live + ideal
-            utils.send_udp_hand(sock,hand, detected_letter, match_ideal)
+            utils.send_udp_hand(sock, hand, selection, match_ideal)
 
             # Draw overlays
             if hand and hand.multi_hand_landmarks:
@@ -134,7 +123,7 @@ try:
                 [f"Score = {score:.2f}",
                  f"FPS = {fps:.2f}",
                  "Selected Letter = " + selection,
-                 "Detected Letter = " + (detected_letter or "?")],
+                 "Press 'Q' to Quit"], 
                 frame
             )
 
@@ -145,95 +134,8 @@ try:
         cap.release()
         cv2.destroyAllWindows()
 
-    elif mode == 2:
-        # MINIMUM RMS with curl heuristics blended in
-        prev_time = time.time()
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                continue
-
-            frame = cv2.flip(frame, 1)
-            hand  = Hands.process(frame)
-
-            # default via RMS
-            match_ideal  = None
-            match_letter = "?"
-            minDist      = 1e9
-
-            for entry in ideals:
-                dist = utils.rmsDist(entry["points"], hand)
-                if dist < minDist:
-                    match_ideal  = entry["points"]
-                    match_letter = entry["letter"]
-                    minDist      = dist
-
-            # curl-based override for closed-fist family (E, M, N, S, T)
-            if hand and hand.multi_hand_landmarks:
-                curls = utils.all_curls(hand)
-                thumb_c, index_c, middle_c, ring_c, pinky_c = curls
-                closed_thr = 1.4
-                if (thumb_c > closed_thr and index_c > closed_thr and
-                    middle_c > closed_thr and ring_c > closed_thr and
-                    pinky_c > closed_thr):
-
-                    lm = hand.multi_hand_landmarks[0].landmark
-                    thumb_tip  = lm[4]
-                    index_tip  = lm[8]
-                    middle_tip = lm[12]
-                    ring_tip   = lm[16]
-                    pinky_tip  = lm[20]
-
-                    # Determine handedness by index vs pinky
-                    right_hand = index_tip.x < pinky_tip.x
-                    # rank thumb across the curled stack (left-to-right changes with handedness)
-                    if right_hand:
-                        if   thumb_tip.x < index_tip.x:   match_letter = "S"
-                        elif thumb_tip.x < middle_tip.x:  match_letter = "T"
-                        elif thumb_tip.x < ring_tip.x:    match_letter = "N"
-                        elif thumb_tip.x < pinky_tip.x:   match_letter = "M"
-                        else:                              match_letter = "E"
-                    else:
-                        if   thumb_tip.x > index_tip.x:   match_letter = "S"
-                        elif thumb_tip.x > middle_tip.x:  match_letter = "T"
-                        elif thumb_tip.x > ring_tip.x:    match_letter = "N"
-                        elif thumb_tip.x > pinky_tip.x:   match_letter = "M"
-                        else:                              match_letter = "E"
-
-                    # swap in the corresponding ideal
-                    for entry in ideals:
-                        if entry["letter"] == match_letter:
-                            match_ideal = entry["points"]
-                            break
-
-            # Send live + ideal
-            utils.send_udp_hand(sock,hand, match_letter, match_ideal)
-
-            # Draw overlays
-            if hand and hand.multi_hand_landmarks:
-                utils.drawConnections(hand, match_ideal, frame)
-                utils.drawLandmarks(match_ideal, frame, 0, mp_draw, mp_hands)
-                utils.drawLandmarks(hand, frame, 0, mp_draw, mp_hands)
-
-            score = 100 - 100 * utils.rmsDist(hand, match_ideal) if (hand and hand.multi_hand_landmarks) else 0
-
-            current_time = time.time()
-            fps = 1.0 / (current_time - prev_time + 1e-9)
-            prev_time = current_time
-
-            utils.drawStats(
-                [f"Score = {score:.2f}",
-                 f"FPS = {fps:.2f}",
-                 "Detected Letter = " + match_letter],
-                frame
-            )
-
-            cv2.imshow("ASL Teacher - Minimum RMS Distance", frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
     else:
-        # CURL DECISION TREE MODE (falls back to RMS if not decisive)
+        # CURL DECISION TREE MODE
         prev_time = time.time()
         while True:
             ret, frame = cap.read()
@@ -317,7 +219,9 @@ try:
             utils.drawStats(
                 [f"Score = {score:.2f}",
                  f"FPS = {fps:.2f}",
-                 "Detected Letter = " + (match_letter or "?")],
+                 "Detected Letter = " + (match_letter or "?"),
+                 "Press 'Q' to Quit"],
+                 
                 frame
             )
 
