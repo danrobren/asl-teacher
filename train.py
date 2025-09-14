@@ -14,7 +14,7 @@ import settings # settings.py constants and Hands configurations
 debug = 0
 
 # number of images per letter to process
-nimpl = 100
+nimpl = 10
 
 # initialize empty set to store averaged ideal hands
 ideals = []
@@ -193,11 +193,6 @@ for letter in letters:
                 print('default case of letter matching; error!')
         # end match letter
         
-        # what really matters for hand detection is not the absolute position of the hand relative to the image frame
-        # we don't care whether the symbol is at the edge of the frame or the center
-        # we want the **relative** positions of the landmarks relative to the wrist
-        # this way in the main program we can extract the locations of each point relative to the wrist and compare those to the ideals
-        # we do this by subtracting each node's position from the root node
         # iterate over all 21 points in mediapipe hands objects
         if hand.multi_hand_landmarks:
             for hand_landmarks in hand.multi_hand_landmarks:
@@ -251,5 +246,4 @@ for entry in ideals:
 
 # save ideal hands to a file ideals.pkl
 with open("ideals.pkl", "wb") as f:
-    #print(ideals)
     pickle.dump(ideals, f)
